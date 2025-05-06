@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification System Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .notification {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            background-color: #f0f0f0;
+            border-left: 4px solid #007bff;
+        }
+        .notification.unread {
+            background-color: #e6f7ff;
+            border-left-color: #1890ff;
+        }
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        .notification-time {
+            font-size: 0.8em;
+            color: #888;
+        }
+        .notification-actions {
+            margin-top: 5px;
+            text-align: right;
+        }
+        .notification-actions button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .notification-actions button:hover {
+            background-color: #0056b3;
+        }
+        .connection-status {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .connection-status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .connection-status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .auth-form {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .auth-form input {
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .auth-form button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .auth-form button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <h1>Notification System Test</h1>
+    
+    <div class="auth-form">
+        <h3>Authentication</h3>
+        <input type="text" id="token-input" placeholder="Enter your JWT token">
+        <button id="connect-btn">Connect</button>
+        <button id="disconnect-btn" disabled>Disconnect</button>
+    </div>
+    
+    <div id="connection-status" class="connection-status disconnected">
+        Disconnected
+    </div>
+    
+    <h2>Notifications</h2>
+    <div id="notifications-container"></div>
+    
+    <script src="/static/js/notification-client.js"></script>
+    <script>
+        // DOM elements
+        const tokenInput = document.getElementById('token-input');
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const connectionStatus = document.getElementById('connection-status');
+        const notificationsContainer = document.getElementById('notifications-container');
+        
+        // Notification client instance
+        let notificationClient = null;
+        
+        // Connect to WebSocket
+        connectBtn.addEventListener('click', () => {
+            const token = tokenInput.value.trim();
+            if (!token) {
+                alert('Please enter a valid JWT token');
+                return;
+            }
+            
+            // Create notification client
+            notificationClient = new NotificationClient(token, {
+                onConnect: handleConnect,
+                onDisconnect: handleDisconnect,
+                onError: handleError,
+                onNotification: handleNotification
+            });
+            
+            // Connect to WebSocket
+            notificationClient.connect();
+        });
+        
+        // Disconnect from WebSocket
+        disconnectBtn.addEventListener('click', () => {
+            if (notificationClient) {
+                notificationClient.disconnect();
+            }
+        });
+        
+        // Handle WebSocket connection
+        function handleConnect() {
+            connectionStatus.textContent = 'Connected';
+            connectionStatus.className = 'connection-status connected';
+            connectBtn.disabled = true;
+            disconnectBtn.disabled = false;
+        }
+        
+        // Handle WebSocket disconnection
+        function handleDisconnect() {
+            connectionStatus.textContent = 'Disconnected';
+            connectionStatus.className = 'connection-status disconnected';
+            connectBtn.disabled = false;
+            disconnectBtn.disabled = true;
+        }
+        
+        // Handle WebSocket error
+        function handleError(error) {
+            console.error('WebSocket error:', error);
+            connectionStatus.textContent = 'Error: ' + (error.message || 'Unknown error');
+            connectionStatus.className = 'connection-status disconnected';
+        }
+        
+        // Handle incoming notification
+        function handleNotification(notification) {
+            // Create notification element
+            const notificationElement = document.createElement('div');
+            notificationElement.className = 'notification unread';
+            notificationElement.dataset.id = notification.id;
+            
+            // Format date
+            const date = new Date(notification.created_at);
+            const formattedDate = date.toLocaleString();
+            
+            // Set notification content
+            notificationElement.innerHTML = `
+                <div class="notification-header">
+                    <strong>${notification.model || 'System'}</strong>
+                    <span class="notification-time">${formattedDate}</span>
+                </div>
+                <div class="notification-content">
+                    ${notification.msg}
+                </div>
+                <div class="notification-actions">
+                    <button class="mark-read-btn" data-id="${notification.id}">Mark as Read</button>
+                    ${notification.redirect_url ? `<a href="${notification.redirect_url}"><button>View</button></a>` : ''}
+                </div>
+            `;
+            
+            // Add notification to container
+            notificationsContainer.prepend(notificationElement);
+            
+            // Add event listener to mark as read button
+            const markReadBtn = notificationElement.querySelector('.mark-read-btn');
+            markReadBtn.addEventListener('click', () => {
+                markNotificationAsRead(notification.id);
+            });
+        }
+        
+        // Mark notification as read
+        function markNotificationAsRead(notificationId) {
+            if (!notificationClient) {
+                return;
+            }
+            
+            notificationClient.markAsRead([notificationId])
+                .then(() => {
+                    // Update UI
+                    const notificationElement = document.querySelector(`.notification[data-id="${notificationId}"]`);
+                    if (notificationElement) {
+                        notificationElement.classList.remove('unread');
+                        const markReadBtn = notificationElement.querySelector('.mark-read-btn');
+                        if (markReadBtn) {
+                            markReadBtn.disabled = true;
+                            markReadBtn.textContent = 'Read';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error marking notification as read:', error);
+                });
+        }
+    </script>
+</body>
+</html>

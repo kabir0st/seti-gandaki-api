@@ -1,0 +1,1 @@
+docker compose --env-file ./src/.env.template up --build -d

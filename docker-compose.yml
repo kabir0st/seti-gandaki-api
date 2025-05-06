@@ -1,0 +1,15 @@
+services:
+  wholesale:
+    container_name: wholesale-web
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["daphne", "-b", "0.0.0.0", "-p", "8989", "core.asgi:application"]
+    ports:
+      - "8989:8989"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8989"]
+      interval: 30s
+      retries: 3
+      start_period: 10s
+      timeout: 5s
