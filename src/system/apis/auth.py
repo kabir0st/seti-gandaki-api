@@ -59,7 +59,7 @@ def authenticate_user(phone_number, password, request):
     user = authenticate(phone_number=phone_number, password=password)
     if not user:
         raise NotAuthenticated("Phone Number or password wrong.")
-    if not user.is_staff and not user.is_verified:
+    if not user.is_staff:
         raise NotAuthenticated(
             "You are not yet verified. Please contact support staff"
             " to track progress of your verification.")

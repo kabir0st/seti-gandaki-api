@@ -36,50 +36,50 @@ else:
     MINIO_USE_HTTPS = True
 
     MINIO_POLICY_HOOKS: List[Tuple[str, dict]] = [
-        ('wholesale-media', {
+        ('seti-media', {
             'Version':
             '2012-10-17',
             'Statement': [{
                 'Effect': 'Allow',
                 'Principal': '*',
                 'Action': ['s3:GetObject'],
-                'Resource': ['arn:aws:s3:::wholesale-media/*']
+                'Resource': ['arn:aws:s3:::seti-media/*']
             }, {
                 'Effect': 'Allow',
                 'Principal': {
                     'AWS': ['arn:aws:iam::account-id:user/user-with-api-key']
                 },
                 'Action': ['s3:PutObject', 's3:DeleteObject'],
-                'Resource': ['arn:aws:s3:::wholesale-media/*']
+                'Resource': ['arn:aws:s3:::seti-media/*']
             }]
         }),
-        ('wholesale-static', {
+        ('seti-static', {
             'Version':
             '2012-10-17',
             'Statement': [{
                 'Effect': 'Allow',
                 'Principal': '*',
                 'Action': ['s3:GetObject'],
-                'Resource': ['arn:aws:s3:::wholesale-static/*']
+                'Resource': ['arn:aws:s3:::seti-static/*']
             }, {
                 'Effect': 'Allow',
                 'Principal': {
                     'AWS': ['arn:aws:iam::account-id:user/user-with-api-key']
                 },
                 'Action': ['s3:PutObject', 's3:DeleteObject'],
-                'Resource': ['arn:aws:s3:::wholesale-static/*']
+                'Resource': ['arn:aws:s3:::seti-static/*']
             }]
         }),
     ]
 
     MINIO_PUBLIC_BUCKETS = [
-        'wholesale-static',
-        'wholesale-media',
+        'seti-static',
+        'seti-media',
     ]
     MINIO_PRIVATE_BUCKETS = []
 
-    MINIO_MEDIA_FILES_BUCKET = 'wholesale-media'
-    MINIO_STATIC_FILES_BUCKET = 'wholesale-static'
+    MINIO_MEDIA_FILES_BUCKET = 'seti-media'
+    MINIO_STATIC_FILES_BUCKET = 'seti-static'
     MINIO_BUCKET_CHECK_ON_SAVE = True
     MINIO_CONSISTENCY_CHECK_ON_START = False
 

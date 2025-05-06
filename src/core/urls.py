@@ -10,7 +10,7 @@ from rest_framework import permissions
 
 SchemaView = get_schema_view(
     openapi.Info(
-        title="Wholesale Dai API",
+        title="Seti Gandaki API",
         default_version='v1',
         description="",
         terms_of_service="",

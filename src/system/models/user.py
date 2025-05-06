@@ -25,9 +25,7 @@ class UserbaseManager(BaseUserManager):
         other_fields.setdefault("is_superuser", False)
         if not phone_number:
             raise ValueError("You must provide an phone_number")
-        other_fields.setdefault("is_verified", False)
         user = self.model(phone_number=phone_number, **other_fields)
-        user.is_verified = other_fields.pop('is_verified')
         user.set_password(password)
         user.save()
         return user
@@ -67,7 +65,7 @@ class UserBase(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    is_staff = models.BooleanField(default=True)
     USERNAME_FIELD = "phone_number"
     REQUIRED_FIELDS = []
     objects = UserbaseManager()

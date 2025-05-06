@@ -1,14 +1,14 @@
 services:
-  wholesale:
-    container_name: wholesale-web
+  seti:
+    container_name: seti-gandaki-web
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["daphne", "-b", "0.0.0.0", "-p", "8989", "core.asgi:application"]
+    command: ["daphne", "-b", "0.0.0.0", "-p", "6060", "core.asgi:application"]
     ports:
-      - "8989:8989"
+      - "6060:6060"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8989"]
+      test: ["CMD", "curl", "-f", "http://localhost:6060"]
       interval: 30s
       retries: 3
       start_period: 10s

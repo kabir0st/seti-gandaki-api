@@ -56,7 +56,6 @@ class RegisterUserBaseSerializer(serializers.ModelSerializer):
         else:
             validated_data['is_staff'] = False
         validated_data['is_superuser'] = False
-        validated_data['is_verified'] = False
         categories = validated_data.pop('assigned_categories', None)
         instance = self.Meta.model(**validated_data)
         instance.save()

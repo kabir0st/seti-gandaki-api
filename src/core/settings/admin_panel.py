@@ -1,7 +1,7 @@
 # settings.py
 UNFOLD = {
-    "SITE_TITLE": "Wholesale Dai",
-    "SITE_HEADER": 'Wholesale Dai',
+    "SITE_TITLE": "Seti Gandaki",
+    "SITE_HEADER": 'Seti Gandaki',
     "SITE_URL": "/",
     "SITE_SYMBOL": "speed",
     "SHOW_HISTORY": True,

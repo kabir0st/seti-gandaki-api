@@ -25,7 +25,6 @@ class RegisterUserBaseAPI(GenericAPIView):
         data = request.data.copy()
         data['is_superuser'] = False
         data['is_staff'] = False
-        data['is_verified'] = False
 
         serializer = self.serializer_class(data=request.data,
                                            context={'request': self.request})
@@ -82,7 +81,6 @@ class UserBaseAPI(DefaultViewSet):
             raise ValidationError(
                 'Permission Denied. You are not allowed to verify user.')
         obj = self.get_object()
-        obj.is_verified = not obj.is_verified
         obj.save()
         return Response({'msg': 'User Verified.'})
 

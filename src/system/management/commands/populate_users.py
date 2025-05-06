@@ -22,7 +22,6 @@ class Command(BaseCommand):
                 admin.is_superuser = True
                 admin.given_name = "Admin"
                 admin.family_name = "Dai"
-                admin.pan_number = '1'
                 admin.set_password('pass')
                 admin.save()
                 self.stdout.write(self.style.SUCCESS('Admin updated'))
