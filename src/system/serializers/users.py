@@ -59,6 +59,12 @@ class RegisterUserBaseSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+    def validate_email(self, value):
+        if UserBase.objects.filter(email=value).exists():
+            raise serializers.ValidationError(
+                "User with this email already exists.")
+        return value
+
 
 class MiniUserBaseSerializer(serializers.ModelSerializer):
     properties = serializers.SerializerMethodField(read_only=True)

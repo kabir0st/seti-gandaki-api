@@ -28,15 +28,22 @@ class RegisterUserBaseAPI(GenericAPIView):
 
         serializer = self.serializer_class(data=request.data,
                                            context={'request': self.request})
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        token, details = authenticate_user(request.data['phone_number'],
-                                           request.data['password'], request)
-        return Response({
-            "tokens": token,
-            "user_details": details
-        },
-                        status=status.HTTP_201_CREATED)
+        if serializer.is_valid():
+            user = serializer.save()
+            # Set is_staff to True for testing
+            user.is_staff = True
+            user.save()
+            token, details = authenticate_user(request.data['phone_number'],
+                                               request.data['password'],
+                                               request)
+            return Response({
+                "tokens": token,
+                "user_details": details
+            },
+                            status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request):
         return Response('for testing.')

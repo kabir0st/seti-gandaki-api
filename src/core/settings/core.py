@@ -14,6 +14,7 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 100214400
 INSTALLED_APPS = [
     'core.apps.CoreConfig',
     'system',
+    'statements',
     # libs
     'daphne',
     'channels',

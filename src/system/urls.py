@@ -30,7 +30,7 @@ urlpatterns = [
          name='RegisterUsers'),
     path('auth/login/', login, name='AuthLogin'),
     path('auth/refresh/', login_refresh, name='TokenRefresh'),
-    path('auth/logout/', logout),
+    path('auth/logout/', logout, name='AuthLogout'),
     path('auth/password/reset/', reset_password, name='PasswordReset'),
     path('auth/password/forget/', forget_password, name='ForgetPassword'),
     path('auth/password/validate-code/', validate_code, name='ValidateCode'),

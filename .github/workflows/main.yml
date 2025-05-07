@@ -39,9 +39,6 @@ jobs:
         uses: supercharge/redis-github-action@1.2.0
         with:
           redis-version: 5.0.7
-      - name: Generate Env
-        working-directory: ./src
-        run: cp .env.template .env
       - name: Test logic using seeder
         working-directory: ./src
         run: python3 manage.py test
