@@ -21,15 +21,11 @@ class RegisterUserBaseSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(validators=[LowercaseEmailValidator()],
                                    required=False)
     profile_image = Base64ImageField(required=False)
-    business_registration = Base64ImageField(required=False)
-    verification_document = Base64ImageField(required=False)
 
     class Meta:
         model = UserBase
         fields = ('email', 'password', 'given_name', 'family_name',
-                  'phone_number', 'profile_image', 'is_staff',
-                  'business_registration', 'verification_document',
-                  'assigned_categories')
+                  'phone_number', 'profile_image', 'is_staff')
 
         extra_kwargs = {
             'is_active': {
@@ -56,13 +52,10 @@ class RegisterUserBaseSerializer(serializers.ModelSerializer):
         else:
             validated_data['is_staff'] = False
         validated_data['is_superuser'] = False
-        categories = validated_data.pop('assigned_categories', None)
         instance = self.Meta.model(**validated_data)
         instance.save()
         if password is not None:
             instance.set_password(password)
-        if categories:
-            instance.assigned_categories.add(*categories)
         instance.save()
         return instance
 
@@ -70,18 +63,12 @@ class RegisterUserBaseSerializer(serializers.ModelSerializer):
 class MiniUserBaseSerializer(serializers.ModelSerializer):
     properties = serializers.SerializerMethodField(read_only=True)
     name = serializers.SerializerMethodField(read_only=True)
-    assigned_categories_details = serializers.SerializerMethodField(
-        read_only=True)
-
-    def get_assigned_categories_details(self, obj):
-        return obj.assigned_categories.values('id', 'name')
 
     class Meta:
         model = UserBase
         fields = ('uuid', 'name', 'id', 'given_name', 'family_name',
                   'phone_number', 'created_at', 'updated_at', 'is_staff',
-                  'is_active', 'properties', 'profile_image',
-                  'assigned_categories_details', 'assigned_categories')
+                  'is_active', 'properties', 'profile_image')
 
     def get_name(self, obj):
         return f"{obj.given_name} {obj.family_name}"
