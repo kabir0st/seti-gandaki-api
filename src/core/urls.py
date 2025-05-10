@@ -22,6 +22,7 @@ SchemaView = get_schema_view(
 
 urlpatterns = [
     path('api/system/', include('system.urls')),
+    path('api/statements/', include('statements.urls')),
     path("docs/",
          SchemaView.with_ui('swagger', cache_timeout=0),
          name='schema-swagger-ui'),
