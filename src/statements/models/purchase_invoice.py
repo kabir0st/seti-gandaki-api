@@ -6,9 +6,31 @@ from django.db import models
 from django.db.models.signals import (post_delete, post_save, pre_delete,
                                       pre_save)
 from django.dispatch import receiver
+from django.utils.timezone import now
 
 from core.utils.functions import limit_size
 from statements.models.business import Business
+from statements.models.support import Staff
+from django.utils.translation import gettext_lazy as _
+
+
+class Vehicle(models.Model):
+
+    license_plate = models.CharField(_("License Plate"),
+                                     max_length=20,
+                                     unique=True)
+
+    is_active = models.BooleanField(_("Is Active"), default=True)
+    created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("Vehicle")
+        verbose_name_plural = _("Vehicles")
+        ordering = ["license_plate"]
+
+    def __str__(self):
+        return self.license_plate
 
 
 class PurchaseBill(models.Model):
@@ -65,6 +87,14 @@ class PurchaseBill(models.Model):
 
     notes = models.TextField(blank=True, null=True)
 
+    bill_started_from = models.DateField(default=now)
+    bill_completed_on = models.DateField(null=True, blank=True)
+
+    assigned_vehicles = models.ManyToManyField(Vehicle,
+                                               related_name='purchase_bills')
+    assigned_staffs = models.ManyToManyField(Staff,
+                                             related_name='purchase_bills')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -101,9 +131,7 @@ class PurchaseItem(models.Model):
     discount_percentage = models.DecimalField(max_digits=4,
                                               decimal_places=2,
                                               default=0)
-    taxable_unit_price = models.DecimalField(max_digits=10,
-                                             decimal_places=2,
-                                             default=0)
+
     taxable_amount = models.DecimalField(max_digits=10,
                                          decimal_places=2,
                                          default=0)

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models.purchase_invoice import PurchaseBill, PurchaseItem
 from .models.business import Business
+from .models.logistics import Vehicle, GatePass, TripLog
 
 
 # Serializer for Business model
@@ -9,6 +10,94 @@ class BusinessSerializer(serializers.ModelSerializer):
     class Meta:
         model = Business
         fields = '__all__'  # Include all fields from the Business model
+
+
+class VehicleSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Vehicle
+        fields = [
+            'id', 'license_plate', 'is_active', 'created_at', 'updated_at'
+        ]  # Removed 'business', 'model', 'type'
+
+
+class GatePassSerializer(serializers.ModelSerializer):
+    vehicle_details = VehicleSerializer(source='vehicle',
+                                        read_only=True,
+                                        allow_null=True)  # vehicle can be null
+
+    # 'business' field removed from GatePass model, so no business_details
+
+    # issued_by_details can be added if a UserSerializer is available
+    # issued_by_details = UserSerializer(
+    #    source='issued_by', read_only=True, allow_null=True
+    # )
+
+    class Meta:
+        model = GatePass
+        fields = [
+            'id',
+            'vehicle',
+            'vehicle_details',
+            'license_plate',
+            'entry_time',
+            'exit_time',
+            'purpose',
+            'driver_name',
+            'driver_phone',
+            'remarks',
+            'issued_by',  # 'issued_by_details', # Add if using UserSerializer
+            'created_at',
+            'updated_at'
+        ]  # Removed 'business'
+        extra_kwargs = {
+            'vehicle': {
+                'allow_null': True,
+                'required': False
+            },  # vehicle can be null
+            # 'business' related extra_kwargs removed
+            'issued_by': {
+                'allow_null': True,
+                'required': False
+            },
+        }
+
+
+class TripLogSerializer(serializers.ModelSerializer):
+    vehicle_details = VehicleSerializer(source='vehicle', read_only=True)
+
+    # 'gate_pass' field removed from TripLog model.
+    # 'driver' and 'driver_name_text' fields removed.
+
+    # Optional: For displaying purchase bill details on GET
+    # purchase_bill_details = PurchaseBillSerializer(
+    #     source='for_purchase_bill', read_only=True, allow_null=True
+    # )
+
+    class Meta:
+        model = TripLog
+        fields = [
+            'id',
+            'vehicle',
+            'vehicle_details',
+            'for_purchase_bill',
+            # 'purchase_bill_details', # Add if using PurchaseBillSerializer
+            'purpose',
+            'notes',
+            'created_at',
+            'updated_at'
+        ]
+        # 'duration_hours', 'distance_km' removed.
+        extra_kwargs = {
+            'vehicle': {
+                'write_only': False
+            },  # vehicle is mandatory
+            'for_purchase_bill': {
+                'allow_null': True,
+                'required': False
+            },
+            # 'gate_pass' and 'driver' related extra_kwargs removed
+        }
 
 
 # Base serializer for PurchaseItem, includes all fields and read-only

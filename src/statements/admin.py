@@ -1,10 +1,12 @@
 from django.contrib import admin
 from .models.purchase_invoice import PurchaseBill, PurchaseItem
 from .models.business import Business
+from .models.logistics import Vehicle, GatePass, TripLog
+from unfold.admin import ModelAdmin, TabularInline
 
 
 @admin.register(Business)
-class BusinessAdmin(admin.ModelAdmin):
+class BusinessAdmin(ModelAdmin):
     list_display = (
         'name',
         'registration_number',
@@ -26,7 +28,7 @@ class BusinessAdmin(admin.ModelAdmin):
     ordering = ('name', )
 
 
-class PurchaseItemInline(admin.TabularInline):
+class PurchaseItemInline(TabularInline):
     model = PurchaseItem
     extra = 1  # Number of empty forms to display
     autocomplete_fields = [
@@ -35,7 +37,7 @@ class PurchaseItemInline(admin.TabularInline):
 
 
 @admin.register(PurchaseBill)
-class PurchaseBillAdmin(admin.ModelAdmin):
+class PurchaseBillAdmin(ModelAdmin):
     list_display = ('purchase_bill_number', 'from_business', 'purchase_date',
                     'bill_amount', 'paid_amount', 'status', 'created_at')
     list_filter = ('status', 'purchase_date', 'from_business')
@@ -46,25 +48,9 @@ class PurchaseBillAdmin(admin.ModelAdmin):
     date_hierarchy = 'purchase_date'
     ordering = ('-purchase_date', )
 
-    fieldsets = (
-        (None, {
-            'fields': ('purchase_bill_number', 'from_business',
-                       'purchase_date', 'due_date')
-        }),
-        ('Amount Details', {
-            'fields':
-            ('bill_amount', 'paid_amount', 'discount_amount', 'tax_amount')
-        }),
-        ('Status & Notes', {
-            'fields': ('status', 'notes')
-        }),
-    )
-    # Add readonly_fields if necessary, e.g., for calculated fields
-    # readonly_fields = ('',)
-
 
 @admin.register(PurchaseItem)
-class PurchaseItemAdmin(admin.ModelAdmin):
+class PurchaseItemAdmin(ModelAdmin):
     list_display = ('purchase_bill', 'item_name_display', 'quantity',
                     'unit_price', 'bill_amount', 'created_at')
     list_filter = ('purchase_bill__purchase_date', 'item_description', 'item')
@@ -83,3 +69,45 @@ class PurchaseItemAdmin(admin.ModelAdmin):
 
     # 'item' is a CharField. If a related 'Item' model and ForeignKey
     # were intended for 'item_object', the model structure would need changes.
+
+
+@admin.register(Vehicle)
+class VehicleAdmin(ModelAdmin):
+    list_display = ('license_plate', 'is_active', 'created_at')
+    search_fields = ('license_plate', )
+    list_filter = ('is_active', )
+    # autocomplete_fields = ['business'] # Business FK removed
+    ordering = ('license_plate', )
+
+
+@admin.register(GatePass)
+class GatePassAdmin(ModelAdmin):
+    list_display = ('vehicle', 'license_plate', 'entry_time', 'exit_time',
+                    'driver_name', 'issued_by', 'purpose'
+                    )  # Removed business, destination
+    search_fields = ('vehicle__license_plate', 'license_plate', 'driver_name',
+                     'purpose', 'remarks'
+                     )  # Removed business__name, destination
+    list_filter = ('entry_time', 'exit_time', 'vehicle')  # Removed business
+    autocomplete_fields = ['vehicle', 'issued_by']  # Removed business
+    date_hierarchy = 'entry_time'
+    ordering = ('-entry_time', )
+
+
+@admin.register(TripLog)
+class TripLogAdmin(ModelAdmin):
+    list_display = ('vehicle', 'for_purchase_bill', 'purpose', 'created_at')
+    # Removed fields: start_time, end_time, start_location, end_location,
+    # driver_display, gate_pass, distance_km, duration_hours
+    search_fields = ('vehicle__license_plate',
+                     'for_purchase_bill__purchase_bill_number', 'purpose',
+                     'notes')
+    # Removed start_location, end_location, driver__username, driver_name_text
+    list_filter = ('created_at', 'vehicle', 'for_purchase_bill')
+    # Removed start_time, driver, gate_pass
+    autocomplete_fields = ['vehicle', 'for_purchase_bill']
+    # Removed gate_pass, driver
+    date_hierarchy = 'created_at'  # Was 'start_time'
+    ordering = ('-created_at', )  # Was '-start_time'
+
+    # driver_display method removed as driver fields are no longer on TripLog
