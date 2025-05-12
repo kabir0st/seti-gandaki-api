@@ -1,8 +1,8 @@
-from rest_framework import permissions
 from core.utils.viewsets import DefaultViewSet
+
 from ..models.logistics import GatePass
 from ..serializers import GatePassSerializer
-# from .filtersets.gatepass import GatePassFilterSet # Placeholder
+from .filtersets import GatePassFilterSet
 
 
 class GatePassViewSet(DefaultViewSet):
@@ -10,22 +10,19 @@ class GatePassViewSet(DefaultViewSet):
     API endpoint that allows gate passes to be viewed or edited.
     """
     queryset = GatePass.objects.all().select_related(
-        'vehicle', 'issued_by').order_by('-entry_time')  # Removed 'business'
+        'vehicle', 'issued_by').order_by('-entry_time')
     serializer_class = GatePassSerializer
-    permission_classes = [permissions.IsAuthenticated]  # Adjust as needed
-    # filterset_class = GatePassFilterSet # Placeholder
+    filterset_class = GatePassFilterSet
     search_fields = [
         'vehicle__license_plate',
-        'license_plate',  # Added direct license_plate search on GatePass
-        # 'business__name', # Removed
+        'license_plate',
         'purpose',
-        # 'destination', # Removed from GatePass model
         'driver_name',
         'driver_phone',
         'issued_by__username',
         'issued_by__first_name',
         'issued_by__last_name',
-        'remarks',  # Added remarks
+        'remarks',
     ]
     ordering_fields = [
         'entry_time',

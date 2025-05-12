@@ -17,8 +17,9 @@ class VehicleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vehicle
         fields = [
-            'id', 'license_plate', 'is_active', 'created_at', 'updated_at'
-        ]  # Removed 'business', 'model', 'type'
+            'id', 'license_plate', 'primary_staffs', 'image', 'vehicle_type',
+            'note', 'is_active', 'created_at', 'updated_at'
+        ]
 
 
 class GatePassSerializer(serializers.ModelSerializer):

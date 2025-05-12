@@ -19,8 +19,18 @@ class Vehicle(models.Model):
     license_plate = models.CharField(_("License Plate"),
                                      max_length=20,
                                      unique=True)
+    primary_staffs = models.ManyToManyField(Staff)
+    image = models.ImageField(
+        null=True,
+        upload_to='vehicles',
+        blank=True,
+        validators=[limit_size, validate_image_file_extension])
+
+    vehicle_type = models.CharField(max_length=255, null=True, blank=True)
+    note = models.TextField(default='', null=True, blank=True)
 
     is_active = models.BooleanField(_("Is Active"), default=True)
+
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
 

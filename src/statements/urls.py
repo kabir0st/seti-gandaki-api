@@ -20,17 +20,7 @@ purchase_bills_router.register('purchase-items',
                                PurchaseItemViewSet,
                                basename='purchase-bill-items')
 
-# Example for nested routes under Vehicle, if needed in the future:
-# vehicle_router = NestedSimpleRouter(router, 'vehicles', lookup='vehicle')
-# vehicle_router.register(
-#     'trip-logs', TripLogViewSet, basename='vehicle-trip-logs'
-# )
-# vehicle_router.register(
-#     'gate-passes', GatePassViewSet, basename='vehicle-gate-passes'
-# )
-
 urlpatterns = [
     path('', include(router.urls)),
     path('', include(purchase_bills_router.urls)),
-    # path('', include(vehicle_router.urls)), # Add if nested routes used
 ]
