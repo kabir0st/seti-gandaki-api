@@ -23,7 +23,7 @@ class TripLogFilterSet(django_filters.FilterSet):
     class Meta:
         model = TripLog
         fields = [
-            'vehicle',
+            'gate_pass',
             'for_purchase_bill',
             'vehicle_license_plate',
             'vehicle_license_plate__icontains',

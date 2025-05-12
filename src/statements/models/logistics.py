@@ -17,9 +17,7 @@ class GatePass(models.Model):
                                      max_length=20,
                                      null=True,
                                      blank=True)
-
-    entry_time = models.DateTimeField(_("Entry Time"), auto_now_add=True)
-    exit_time = models.DateTimeField(_("Exit Time"), blank=True, null=True)
+    # entry_time and exit_time are moved to GatePassMovement
     purpose = models.TextField(_("Purpose of Visit"), blank=True, null=True)
 
     driver_name = models.CharField(_("Driver's Name"),
@@ -40,25 +38,57 @@ class GatePass(models.Model):
         null=True,
         blank=True  # Could be system generated or anonymous
     )
-    created_at = models.DateTimeField(_("Created At Record"),
-                                      auto_now_add=True)
+    # This is the issue time
+    created_at = models.DateTimeField(_("Issued At"), auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated At Record"), auto_now=True)
 
     class Meta:
         verbose_name = _("Gate Pass")
         verbose_name_plural = _("Gate Passes")
-        ordering = ["-entry_time"]
+        ordering = ["-created_at"]  # Order by issue time
 
     def __str__(self):
-        return (f"Gate Pass for {self.vehicle} at "
-                f"{self.entry_time.strftime('%Y-%m-%d %H:%M')}")
+        return (
+            f"Gate Pass for {self.vehicle or self.license_plate} issued at "
+            f"{self.created_at.strftime('%Y-%m-%d %H:%M')}")
+
+
+class GatePassMovement(models.Model):
+    gate_pass = models.ForeignKey(GatePass,
+                                  on_delete=models.CASCADE,
+                                  related_name='movements',
+                                  verbose_name=_("Gate Pass"))
+    # For company vehicles, first movement is an exit, then entry,
+    # then exit, etc.
+    # For external vehicles, first movement is an entry, then exit,
+    # then entry, etc.
+    exit_time = models.DateTimeField(_("Exit Time"), blank=True, null=True)
+    entry_time = models.DateTimeField(_("Entry Time"), blank=True, null=True)
+    # Potentially add: security_personnel,
+    # specific_remarks_for_movement
+
+    created_at = models.DateTimeField(_("Recorded At"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("Gate Pass Movement")
+        verbose_name_plural = _("Gate Pass Movements")
+        ordering = ["gate_pass", "-created_at"]
+
+    def __str__(self):
+        movement_type = "Exit" if self.exit_time else "Entry"
+        movement_time = self.exit_time or self.entry_time
+        vehicle_id = self.gate_pass.vehicle or self.gate_pass.license_plate
+        time_str = (movement_time.strftime('%Y-%m-%d %H:%M')
+                    if movement_time else 'N/A')
+        return f"{movement_type} for {vehicle_id} at {time_str}"
 
 
 class TripLog(models.Model):
-    vehicle = models.ForeignKey(Vehicle,
-                                on_delete=models.PROTECT,
-                                related_name='trip_logs',
-                                verbose_name=_("Vehicle"))
+    gate_pass = models.ForeignKey(GatePass,
+                                  on_delete=models.PROTECT,
+                                  related_name='trip_logs',
+                                  verbose_name=_("Vehicle"))
     for_purchase_bill = models.ForeignKey(PurchaseBill,
                                           on_delete=models.CASCADE,
                                           null=True,

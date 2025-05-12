@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models.purchase_invoice import PurchaseBill, PurchaseItem
 from .models.business import Business
-from .models.logistics import Vehicle, GatePass, TripLog
+from .models.logistics import Vehicle, GatePass, GatePassMovement, TripLog
 
 
 # Serializer for Business model
@@ -9,7 +9,7 @@ class BusinessSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Business
-        fields = '__all__'  # Include all fields from the Business model
+        fields = '__all__'
 
 
 class VehicleSerializer(serializers.ModelSerializer):
@@ -22,41 +22,35 @@ class VehicleSerializer(serializers.ModelSerializer):
         ]
 
 
+class GatePassMovementSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = GatePassMovement
+        fields = [
+            'id', 'gate_pass', 'exit_time', 'entry_time', 'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ('created_at', 'updated_at')
+
+
 class GatePassSerializer(serializers.ModelSerializer):
     vehicle_details = VehicleSerializer(source='vehicle',
                                         read_only=True,
-                                        allow_null=True)  # vehicle can be null
-
-    # 'business' field removed from GatePass model, so no business_details
-
-    # issued_by_details can be added if a UserSerializer is available
-    # issued_by_details = UserSerializer(
-    #    source='issued_by', read_only=True, allow_null=True
-    # )
+                                        allow_null=True)
+    movements = GatePassMovementSerializer(many=True, read_only=True)
 
     class Meta:
         model = GatePass
         fields = [
-            'id',
-            'vehicle',
-            'vehicle_details',
-            'license_plate',
-            'entry_time',
-            'exit_time',
-            'purpose',
-            'driver_name',
-            'driver_phone',
-            'remarks',
-            'issued_by',  # 'issued_by_details', # Add if using UserSerializer
-            'created_at',
-            'updated_at'
-        ]  # Removed 'business'
+            'id', 'vehicle', 'vehicle_details', 'license_plate', 'purpose',
+            'driver_name', 'driver_phone', 'remarks', 'issued_by',
+            'created_at', 'updated_at', 'movements'
+        ]
         extra_kwargs = {
             'vehicle': {
                 'allow_null': True,
                 'required': False
-            },  # vehicle can be null
-            # 'business' related extra_kwargs removed
+            },
             'issued_by': {
                 'allow_null': True,
                 'required': False
@@ -65,44 +59,22 @@ class GatePassSerializer(serializers.ModelSerializer):
 
 
 class TripLogSerializer(serializers.ModelSerializer):
-    vehicle_details = VehicleSerializer(source='vehicle', read_only=True)
-
-    # 'gate_pass' field removed from TripLog model.
-    # 'driver' and 'driver_name_text' fields removed.
-
-    # Optional: For displaying purchase bill details on GET
-    # purchase_bill_details = PurchaseBillSerializer(
-    #     source='for_purchase_bill', read_only=True, allow_null=True
-    # )
+    gate_pass_details = VehicleSerializer(source='gate_pass', read_only=True)
 
     class Meta:
         model = TripLog
         fields = [
-            'id',
-            'vehicle',
-            'vehicle_details',
-            'for_purchase_bill',
-            # 'purchase_bill_details', # Add if using PurchaseBillSerializer
-            'purpose',
-            'notes',
-            'created_at',
-            'updated_at'
+            'id', 'gate_pass', 'gate_pass_details', 'for_purchase_bill',
+            'purpose', 'notes', 'created_at', 'updated_at'
         ]
-        # 'duration_hours', 'distance_km' removed.
         extra_kwargs = {
-            'vehicle': {
-                'write_only': False
-            },  # vehicle is mandatory
             'for_purchase_bill': {
                 'allow_null': True,
                 'required': False
             },
-            # 'gate_pass' and 'driver' related extra_kwargs removed
         }
 
 
-# Base serializer for PurchaseItem, includes all fields and read-only
-# calculated fields
 class PurchaseItemBaseSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -112,22 +84,17 @@ class PurchaseItemBaseSerializer(serializers.ModelSerializer):
             'sub_total',
             'taxable_amount',
             'tax_amount',
-            'bill_amount',  # Final bill_amount of item, calculated by signal
+            'bill_amount',
         )
 
 
-# Serializer for PurchaseItem list view
 class PurchaseItemListSerializer(serializers.ModelSerializer):
-    # Example: To show purchase_bill_number directly in the list
-    # purchase_bill_number = serializers.CharField(
-    #     source='purchase_bill.purchase_bill_number', read_only=True
-    # )
 
     class Meta:
         model = PurchaseItem
         fields = (
             'id',
-            'purchase_bill',  # Foreign Key to PurchaseBill (resolves to ID)
+            'purchase_bill',
             'item',
             'item_description',
             'quantity',
@@ -135,17 +102,12 @@ class PurchaseItemListSerializer(serializers.ModelSerializer):
             'unit_price',
             'discount_percentage',
             'tax_percent_applied',
-            'bill_amount',  # Final bill_amount of the item
+            'bill_amount',
             'created_at',
         )
 
 
-# Serializer for PurchaseItem detail view (create, update, retrieve)
 class PurchaseItemDetailSerializer(PurchaseItemBaseSerializer):
-    # Inherits all fields and read_only_fields from PurchaseItemBaseSerializer
-    # If you need to represent 'purchase_bill' with more detail on read:
-    # purchase_bill = PurchaseBillLightSerializer(read_only=True)
-    # # Define PurchaseBillLightSerializer separately
     pass
 
 
@@ -202,31 +164,3 @@ class PurchaseBillSerializer(serializers.ModelSerializer):
             'sub_total',
             'bill_amount',
         )
-
-    # If you want 'from_business' to be write_only and
-    # 'from_business_details' to be the sole representation for
-    # reading 'from_business':
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     if self.context.get('request') and \
-    #        self.context['request'].method in ['POST', 'PUT', 'PATCH']:
-    #         self.fields['from_business_details'].read_only = True
-    #         # Ensure it's not expected on write
-    #         self.fields['from_business'].write_only = True
-    #         # Ensure it's for write
-    #     else: # GET
-    #         # For GET, we might want to remove the 'from_business' ID field
-    #         # if 'from_business_details' is present
-    #         # This logic can get complex; simpler to have distinct
-    #         # write_only field if strict separation is needed.
-    #         # The current setup with 'from_business' (PK) and
-    #         # 'from_business_details' (Nested) is common.
-    #         pass
-
-
-# Example of a "Light" serializer if needed for
-# PurchaseItemDetailSerializer's purchase_bill field:
-# class PurchaseBillLightSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = PurchaseBill
-#         fields = ('id', 'purchase_bill_number', 'purchase_date', 'status')
