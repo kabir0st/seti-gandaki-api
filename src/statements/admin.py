@@ -1,8 +1,9 @@
 from django.contrib import admin
-from .models.purchase_invoice import PurchaseBill, PurchaseItem
-from .models.business import Business
-from .models.logistics import Vehicle, GatePass, GatePassMovement, TripLog
 from unfold.admin import ModelAdmin, TabularInline
+
+from .models.business import Business
+from .models.logistics import GatePass, GatePassMovement, TripLog, Vehicle
+from .models.purchase_invoice import PurchaseBill, PurchaseItem
 
 
 @admin.register(Business)
