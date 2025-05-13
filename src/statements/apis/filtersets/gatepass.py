@@ -27,11 +27,6 @@ class GatePassFilterSet(django_filters.FilterSet):
                                                      lookup_expr='lte')
     is_open = django_filters.BooleanFilter(field_name='exit_time',
                                            lookup_expr='isnull')
-    issued_by_username = django_filters.ModelChoiceFilter(
-        field_name='issued_by__username',
-        to_field_name='username',
-        queryset=User.objects.all(),
-        lookup_expr='iexact')
 
     class Meta:
         model = GatePass
@@ -45,5 +40,4 @@ class GatePassFilterSet(django_filters.FilterSet):
             'exit_time_after',
             'exit_time_before',
             'is_open',
-            'issued_by_username',
         ]

@@ -33,7 +33,7 @@ class GatePassViewSet(DefaultViewSet):
         'remarks',
     ]
 
-    @action(detail=True, methods=['post'], url_path='record-exit')
+    @action(detail=True, methods=['GET'], url_path='record-exit')
     def record_exit(self, request, pk=None):
         """
         Records an exit for the given gate pass.
@@ -59,7 +59,7 @@ class GatePassViewSet(DefaultViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=['post'], url_path='record-entry')
+    @action(detail=True, methods=['GET'], url_path='record-entry')
     def record_entry(self, request, pk=None):
         """
         Records an entry for the given gate pass.

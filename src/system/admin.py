@@ -9,7 +9,7 @@ from .models import (FAQ, AuthenticationLog, Document, Inquiries, Notification,
 
 class UserBaseAdmin(ModelAdmin):
     list_display = ('email', 'is_active', 'created_at')
-    search_fields = ('email', 'username', 'given_name', 'family_name')
+    search_fields = ('email', 'given_name', 'family_name')
     readonly_fields = ('created_at', 'updated_at')
     filter_horizontal = ()
     list_filter = ()
