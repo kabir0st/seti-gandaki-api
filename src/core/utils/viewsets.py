@@ -131,31 +131,35 @@ class DefaultViewSet(ModelViewSet):
         return get_unique_queryset(queryset)
 
     def list(self, request, *args, **kwargs):
-        model_name = self.queryset.model.__name__.lower()
-        # for caching purposes
-        params = request.query_params.dict()
-        cache_for_params = getattr(self, 'cache_for_params',
-                                   [{
-                                       'page': '1',
-                                       'size': '20',
-                                       'id_pk': self.kwargs.get('id_pk', None)
-                                   }])
-        cache_key = None
-        # check for cache
-        response = None
-        if params in cache_for_params:
-            cached_data, cache_key = get_or_set_cache(model_name, params)
-            if cached_data:
-                response = Response(json.loads(cached_data))
-                response['data-type'] = 'cached'
-        if not response:
-            response = super().list(request, *args, **kwargs)
-            response['data-type'] = 'fresh'
-            if cache_key:
-                cache.set(cache_key, json.dumps(response.data), 30)
-        response['Export-Fields'] = get_all_exportable_fields(
-            self.queryset.first() if self.queryset.first() else None)
-        return response
+        try:
+            model_name = self.queryset.model.__name__.lower()
+            # for caching purposes
+            params = request.query_params.dict()
+            cache_for_params = getattr(
+                self, 'cache_for_params',
+                [{
+                    'page': '1',
+                    'size': '20',
+                    'id_pk': self.kwargs.get('id_pk', None)
+                }])
+            cache_key = None
+            # check for cache
+            response = None
+            if params in cache_for_params:
+                cached_data, cache_key = get_or_set_cache(model_name, params)
+                if cached_data:
+                    response = Response(json.loads(cached_data))
+                    response['data-type'] = 'cached'
+            if not response:
+                response = super().list(request, *args, **kwargs)
+                response['data-type'] = 'fresh'
+                if cache_key:
+                    cache.set(cache_key, json.dumps(response.data), 30)
+            response['Export-Fields'] = get_all_exportable_fields(
+                self.queryset.first() if self.queryset.first() else None)
+            return response
+        except Exception:
+            return super().list(request, *args, **kwargs)
 
 
 class SingletonViewSet(ModelViewSet):
