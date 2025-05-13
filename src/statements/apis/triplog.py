@@ -10,19 +10,13 @@ class TripLogViewSet(DefaultViewSet):
     API endpoint that allows trip logs to be viewed or edited.
     """
     queryset = TripLog.objects.all().select_related(
-        'vehicle', 'for_purchase_bill').order_by('-created_at')
+        'gate_pass', 'for_purchase_bill').order_by('-created_at')
     serializer_class = TripLogSerializer
     permission_classes = [permissions.IsAuthenticated]
     filterset_class = TripLogFilterSet
     search_fields = [
-        'vehicle__license_plate',
+        'gate_pass__vehicle__license_plate',
         'purpose',
         'notes',
-        'for_purchase_bill__purchase_bill_number',
-    ]
-    ordering_fields = [
-        'vehicle__license_plate',
-        'created_at',
-        'updated_at',
         'for_purchase_bill__purchase_bill_number',
     ]
