@@ -54,7 +54,7 @@ class PurchaseBill(models.Model):
                                             blank=True,
                                             null=True)
 
-    sub_total = models.DecimalField(max_digits=10, decimal_places=2)
+    sub_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     grace_discount = models.DecimalField(max_digits=10,
                                          decimal_places=2,
@@ -72,8 +72,12 @@ class PurchaseBill(models.Model):
                                                 null=True,
                                                 blank=True)
 
-    bill_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    paid_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    bill_amount = models.DecimalField(max_digits=10,
+                                      decimal_places=2,
+                                      default=0)
+    paid_amount = models.DecimalField(max_digits=10,
+                                      decimal_places=2,
+                                      default=0)
 
     shipping_handling_receipt = models.ImageField(
         null=True,
