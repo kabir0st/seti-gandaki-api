@@ -14,18 +14,18 @@ class GatePass(models.Model):
                                 verbose_name=_("Vehicle"))
 
     license_plate = models.CharField(_("License Plate"),
-                                     max_length=20,
+                                     max_length=225,
                                      null=True,
                                      blank=True)
     # entry_time and exit_time are moved to GatePassMovement
     purpose = models.TextField(_("Purpose of Visit"), blank=True, null=True)
 
     driver_name = models.CharField(_("Driver's Name"),
-                                   max_length=100,
+                                   max_length=225,
                                    blank=True,
                                    null=True)
     driver_phone = models.CharField(_("Driver's Phone"),
-                                    max_length=20,
+                                    max_length=225,
                                     blank=True,
                                     null=True)
 

@@ -18,7 +18,7 @@ class Business(models.Model):
                                       blank=True,
                                       null=True)
     phone_number = models.CharField(_("Phone Number"),
-                                    max_length=20,
+                                    max_length=255,
                                     blank=True,
                                     null=True)
     address = models.TextField(_("Address"), blank=True, null=True)
