@@ -71,7 +71,7 @@ class GatePassSerializer(serializers.ModelSerializer):
 
 
 class TripLogSerializer(serializers.ModelSerializer):
-    gate_pass_details = VehicleSerializer(source='gate_pass', read_only=True)
+    gate_pass_details = GatePassSerializer(source='gate_pass', read_only=True)
 
     class Meta:
         model = TripLog
