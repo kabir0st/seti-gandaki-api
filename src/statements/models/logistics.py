@@ -30,6 +30,7 @@ class GatePass(models.Model):
                                     null=True)
 
     remarks = models.TextField(_("Remarks"), blank=True, null=True)
+
     issued_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

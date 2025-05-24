@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models.purchase_invoice import PurchaseBill, PurchaseItem
 from .models.business import Business
 from .models.logistics import Vehicle, GatePass, GatePassMovement, TripLog
+from .models.support import Staff
 
 
 # Serializer for Business model
@@ -10,6 +11,17 @@ class BusinessSerializer(serializers.ModelSerializer):
     class Meta:
         model = Business
         fields = '__all__'
+
+
+class StaffSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Staff
+        fields = [
+            'id', 'name', 'phone_number', 'verification_document', 'pan',
+            'assigned_salary', 'address', 'updated_at'
+        ]
+        read_only_fields = ('updated_at', )
 
 
 class VehicleSerializer(serializers.ModelSerializer):

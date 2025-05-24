@@ -54,19 +54,21 @@ class PurchaseBill(models.Model):
                                             blank=True,
                                             null=True)
 
-    sub_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    sub_total = models.DecimalField(max_digits=10,
+                                    decimal_places=2,
+                                    default=Decimal("0.00"))
 
     grace_discount = models.DecimalField(max_digits=10,
                                          decimal_places=2,
-                                         default=0)
+                                         default=Decimal("0.00"))
 
     shipping_and_handling_costs = models.DecimalField(max_digits=10,
                                                       decimal_places=2,
-                                                      default=0)
+                                                      default=Decimal("0.00"))
 
     additional_costs = models.DecimalField(max_digits=10,
                                            decimal_places=2,
-                                           default=0)
+                                           default=Decimal("0.00"))
 
     additional_costs_remarks = models.TextField(max_length=255,
                                                 null=True,
@@ -74,10 +76,10 @@ class PurchaseBill(models.Model):
 
     bill_amount = models.DecimalField(max_digits=10,
                                       decimal_places=2,
-                                      default=0)
+                                      default=Decimal("0.00"))
     paid_amount = models.DecimalField(max_digits=10,
                                       decimal_places=2,
-                                      default=0)
+                                      default=Decimal("0.00"))
 
     shipping_handling_receipt = models.ImageField(
         null=True,
@@ -112,9 +114,6 @@ class PurchaseBill(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return self.purchase_bill_number
-
 
 @receiver(pre_delete, sender=PurchaseBill)
 def prevent_delete_if_not_draft(sender, instance, **kwargs):
@@ -144,22 +143,22 @@ class PurchaseItem(models.Model):
 
     discount_percentage = models.DecimalField(max_digits=4,
                                               decimal_places=2,
-                                              default=0)
+                                              default=Decimal("0.00"))
 
     taxable_amount = models.DecimalField(max_digits=10,
                                          decimal_places=2,
-                                         default=0)
+                                         default=Decimal("0.00"))
 
     tax_percent_applied = models.DecimalField(max_digits=4,
                                               decimal_places=2,
-                                              default=0)
+                                              default=Decimal("0.00"))
     tax_amount = models.DecimalField(max_digits=10,
                                      decimal_places=2,
-                                     default=0)
+                                     default=Decimal("0.00"))
 
     bill_amount = models.DecimalField(max_digits=10,
                                       decimal_places=2,
-                                      default=0)
+                                      default=Decimal("0.00"))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -12,7 +12,4 @@ class BusinessViewSet(DefaultViewSet):
     queryset = Business.objects.all().order_by('-created_at')
     serializer_class = BusinessSerializer
     filterset_class = BusinessFilterSet
-    search_fields = [
-        'name', 'registration_number', 'contact_person', 'contact_email',
-        'phone_number'
-    ]
+    search_fields = ['name', 'registration_number']
