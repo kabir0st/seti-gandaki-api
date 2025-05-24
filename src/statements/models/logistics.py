@@ -106,4 +106,4 @@ class TripLog(models.Model):
         ordering = ["-created_at"]  # Was: "-start_time"
 
     def __str__(self):
-        return f"Trip Log for {self.vehicle} (ID: {self.id})"
+        return f"Trip Log for {self.gate_pass.vehicle} (ID: {self.id})"
