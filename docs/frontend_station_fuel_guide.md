@@ -225,6 +225,89 @@ Base URL: `/api/hrm/fuel-tickets/`
     -   A public-facing page where anyone can enter a `ticket_id`.
     -   Frontend calls `GET /api/hrm/fuel-tickets/{ticket_id}/verify/` to display its status.
 
+## 4. Statistics APIs
+
+This section details API endpoints for retrieving aggregated statistics related to fuel tickets and petrol station activity.
+
+### 4.1. Petrol Station Specific Statistics
+
+-   **Endpoint:** `GET /api/hrm/petrol-stations/{id}/stats/`
+    -   **Description:** Retrieves consumption statistics for a specific petrol station. The `{id}` in the URL is the database ID of the `PetrolStation`.
+    -   **Permissions:** Inherits from `PetrolStationViewSet` (Likely Authenticated users, or Admin if configured).
+    -   **Query Parameters:**
+        -   `start_date` (String, Optional, Format: `YYYY-MM-DD`): Filters tickets consumed on or after this date.
+        -   `end_date` (String, Optional, Format: `YYYY-MM-DD`): Filters tickets consumed on or before this date.
+        -   `fuel_type` (String, Optional, Enum: "PETROL", "DIESEL"): Filters by the type of fuel.
+    -   **Success Response (200 OK):**
+        ```json
+        {
+            "station_name": "Main Street Station",
+            "station_code": "1001",
+            "filters_applied": {
+                "start_date": "2023-01-01",
+                "end_date": "2023-01-31",
+                "fuel_type": "DIESEL"
+            },
+            "total_tickets_verified": 50,
+            "fuel_dispersed": {
+                "petrol_liters": 0.00,
+                "diesel_liters": 1250.75,
+                "total_liters": 1250.75
+            },
+            "period_coverage": {
+                 "earliest_ticket_date": "2023-01-05T10:00:00Z",
+                 "latest_ticket_date": "2023-01-28T15:30:00Z"
+            }
+        }
+        ```
+    -   **Error Responses:**
+        -   `400 Bad Request`: If date format is invalid or `fuel_type` is invalid.
+        -   `404 Not Found`: If the petrol station with the given `id` does not exist.
+
+### 4.2. General Fueling Statistics
+
+-   **Endpoint:** `GET /api/hrm/fueling-stats/`
+    -   **Description:** Retrieves overall statistics for fuel dispatch and consumption across the system.
+    -   **Permissions:** `IsAdminUser`.
+    -   **Query Parameters:**
+        -   `start_date` (String, Optional, Format: `YYYY-MM-DD`): Filters tickets based on their creation or consumption date.
+        -   `end_date` (String, Optional, Format: `YYYY-MM-DD`): Filters tickets based on their creation or consumption date.
+        -   `fuel_type` (String, Optional, Enum: "PETROL", "DIESEL"): Filters by the type of fuel.
+        -   `station_id` (Integer, Optional): Filters statistics to a specific petrol station.
+    -   **Success Response (200 OK):**
+        ```json
+        {
+            "filters_applied": {
+                "start_date": "2023-01-01",
+                "end_date": "2023-12-31",
+                "fuel_type": "PETROL",
+                "station_id": 1
+            },
+            "total_tickets_created": 1200,
+            "total_fuel_dispatched": {
+                "petrol_liters": 15000.50,
+                "diesel_liters": 25000.00,
+                "total_liters": 40000.50
+            },
+            "total_tickets_consumed": 1150,
+            "total_fuel_consumed": {
+                "petrol_liters": 14500.25,
+                "diesel_liters": 24000.75,
+                "total_liters": 38501.00
+            },
+            "period_coverage_created": {
+                 "earliest_ticket_date": "2023-01-02T08:00:00Z",
+                 "latest_ticket_date": "2023-12-30T18:00:00Z"
+            },
+            "period_coverage_consumed": {
+                 "earliest_ticket_date": "2023-01-02T09:00:00Z",
+                 "latest_ticket_date": "2023-12-30T19:00:00Z"
+            }
+        }
+        ```
+    -   **Error Responses:**
+        -   `400 Bad Request`: If date format is invalid, `fuel_type` is invalid, or `station_id` is not an integer.
+        -   `404 Not Found`: If a `station_id` is provided but the station does not exist.
 ## 4. Workflow Examples
 
 ### 4.1. Dispatching a Fuel Ticket
