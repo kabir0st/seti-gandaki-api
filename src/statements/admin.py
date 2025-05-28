@@ -7,7 +7,8 @@ from .models.purchase_invoice import PurchaseBill, PurchaseItem
 from .models.invoice.invoice import Invoice
 from .models.invoice.invoice_item import InvoiceItem
 from .models.expense import ExpenseCategory, Expense, ExpenseItem
-
+from .models.settings import StatementSettings
+from .models.support import Staff
 
 @admin.register(Business)
 class BusinessAdmin(ModelAdmin):
@@ -214,5 +215,22 @@ class TripLogAdmin(ModelAdmin):
     # Removed gate_pass, driver
     date_hierarchy = 'created_at'  # Was 'start_time'
     ordering = ('-created_at', )  # Was '-start_time'
+
+
+@admin.register(StatementSettings)
+class StatementSettingsAdmin(ModelAdmin):
+    list_display = ('fiscal_year_change_month_in_bs',
+                    'fiscal_year_change_day_in_bs',
+                    'default_quick_invoice_business', 'sales_note')
+    autocomplete_fields = ['default_quick_invoice_business']
+
+
+@admin.register(Staff)
+class StaffAdmin(ModelAdmin):
+    list_display = ('name', 'phone_number', 'pan', 'assigned_salary',
+                    'updated_at')
+    search_fields = ('name', 'phone_number', 'pan')
+    list_filter = ('updated_at', )
+    ordering = ('name', )
 
     # driver_display method removed as driver fields are no longer on TripLog

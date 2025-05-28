@@ -8,6 +8,8 @@ from .apis.gatepass import GatePassViewSet
 from .apis.triplog import TripLogViewSet
 from .apis.support import StaffViewSet
 from .apis.invoice import InvoiceViewSet, InvoiceItemViewSet
+from .apis.settings import StatementSettingsAPIView
+from .apis.expense import ExpenseCategoryViewSet, ExpenseViewSet, ExpenseItemViewSet
 
 router = DefaultRouter()
 router.register('purchase-bills', PurchaseBillViewSet, basename='PurchaseBill')
@@ -17,6 +19,8 @@ router.register('gate-passes', GatePassViewSet, basename='GatePass')
 router.register('trip-logs', TripLogViewSet, basename='TripLog')
 router.register('staffs', StaffViewSet, basename='Staff')
 router.register('invoices', InvoiceViewSet, basename='Invoice')
+router.register('expense-categories', ExpenseCategoryViewSet, basename='ExpenseCategory')
+router.register('expenses', ExpenseViewSet, basename='Expense')
 
 purchase_bills_router = NestedSimpleRouter(router,
                                            'purchase-bills',
@@ -32,4 +36,12 @@ urlpatterns = [
     path('', include(router.urls)),
     path('', include(purchase_bills_router.urls)),
     path('', include(invoices_router.urls)),
+]
+
+expenses_router = NestedSimpleRouter(router, 'expenses', lookup='expense')
+expenses_router.register('items', ExpenseItemViewSet, basename='expense-items')
+
+urlpatterns += [
+    path('', include(expenses_router.urls)),
+    path('settings/', StatementSettingsAPIView.as_view(), name='statement-settings'),
 ]

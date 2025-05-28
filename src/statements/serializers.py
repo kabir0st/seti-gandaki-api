@@ -5,6 +5,8 @@ from .models.logistics import Vehicle, GatePass, GatePassMovement, TripLog
 from .models.support import Staff
 from .models.invoice.invoice import Invoice
 from .models.invoice.invoice_item import InvoiceItem
+from .models.settings import StatementSettings
+from .models.expense import ExpenseCategory, Expense, ExpenseItem
 
 
 # Serializer for Business model
@@ -293,5 +295,85 @@ class InvoiceSerializer(serializers.ModelSerializer):
                     pass
             else:
                 InvoiceItem.objects.create(invoice=instance, **item_data)
+
+        return instance
+
+
+class StatementSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StatementSettings
+        fields = '__all__'
+
+
+class ExpenseCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExpenseCategory
+        fields = '__all__'
+
+
+class ExpenseItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExpenseItem
+        fields = [
+            'id',
+            'item_name',
+            'quantity',
+            'price_per_item',
+            'total_price',
+        ]
+        read_only_fields = ['total_amount']
+
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    expense_items = ExpenseItemSerializer(many=True)
+
+    class Meta:
+        model = Expense
+        fields = [
+            'id',
+            'category',
+            'paid_to',
+            'bill_number',
+            'payment_date',
+            'total_amount',
+            'status',
+            'remarks',
+            'created_by',
+            'last_updated_by',
+            'cancelled_by',
+            'created_at',
+            'updated_at',
+            'expense_items',
+        ]
+        read_only_fields = ['total_amount']
+
+    def create(self, validated_data):
+        expense_items_data = validated_data.pop('expense_items')
+        expense = Expense.objects.create(**validated_data)
+        for item_data in expense_items_data:
+            ExpenseItem.objects.create(expense=expense, **item_data)
+        return expense
+
+    def update(self, instance, validated_data):
+        expense_items_data = validated_data.pop('expense_items', [])
+
+        # Update expense fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Update or create expense items
+        for item_data in expense_items_data:
+            item_id = item_data.get('id')
+            if item_id:
+                try:
+                    expense_item = ExpenseItem.objects.get(id=item_id, expense=instance)
+                    for attr, value in item_data.items():
+                        setattr(expense_item, attr, value)
+                    expense_item.save()
+                except ExpenseItem.DoesNotExist:
+                    pass
+            else:
+                ExpenseItem.objects.create(expense=instance, **item_data)
 
         return instance
