@@ -144,7 +144,7 @@ class Invoice(DefaultModel):
 
     def __str__(self):
         if self.customer:
-            return (f'{self.customer.full_name}'
+            return (f'{self.customer.name}'
                     f' {self.invoice_number or "Draft"}')
         return f'{self.customer_name or ""} {self.invoice_number or "Draft"}'
 
