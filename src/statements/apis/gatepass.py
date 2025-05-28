@@ -1,7 +1,8 @@
 from django.utils import timezone
-from rest_framework import status
+from rest_framework import status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
 
 from core.utils.viewsets import DefaultViewSet
 
@@ -20,6 +21,7 @@ class GatePassViewSet(DefaultViewSet):
         'vehicle', 'issued_by').prefetch_related('movements').order_by(
             '-created_at')  # Order by issue time
     serializer_class = GatePassSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_class = GatePassFilterSet
     search_fields = [
         'vehicle__license_plate',

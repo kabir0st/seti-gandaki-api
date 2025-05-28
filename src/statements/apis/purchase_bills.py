@@ -1,4 +1,6 @@
-from django_filters import rest_framework as filters
+from django_filters import rest_framework as django_filters
+from rest_framework import filters
+from django_filters.rest_framework import DjangoFilterBackend
 
 from core.utils.viewsets import DefaultFilterSet, DefaultViewSet
 from ..models.purchase_invoice import PurchaseBill, PurchaseItem
@@ -9,24 +11,24 @@ from ..serializers import (PurchaseBillSerializer,
 
 # Filters for PurchaseItem
 class PurchaseItemFilter(DefaultFilterSet):
-    purchase_bill = filters.NumberFilter(field_name='purchase_bill__id')
-    purchase_bill_number = filters.CharFilter(
+    purchase_bill = django_filters.NumberFilter(field_name='purchase_bill__id')
+    purchase_bill_number = django_filters.CharFilter(
         field_name='purchase_bill__purchase_bill_number',
         lookup_expr='icontains')
-    item = filters.CharFilter(field_name='item', lookup_expr='icontains')
-    item_description = filters.CharFilter(field_name='item_description',
+    item = django_filters.CharFilter(field_name='item', lookup_expr='icontains')
+    item_description = django_filters.CharFilter(field_name='item_description',
                                           lookup_expr='icontains')
-    min_quantity = filters.NumberFilter(field_name='quantity',
+    min_quantity = django_filters.NumberFilter(field_name='quantity',
                                         lookup_expr='gte')
-    max_quantity = filters.NumberFilter(field_name='quantity',
+    max_quantity = django_filters.NumberFilter(field_name='quantity',
                                         lookup_expr='lte')
-    min_unit_price = filters.NumberFilter(field_name='unit_price',
+    min_unit_price = django_filters.NumberFilter(field_name='unit_price',
                                           lookup_expr='gte')
-    max_unit_price = filters.NumberFilter(field_name='unit_price',
+    max_unit_price = django_filters.NumberFilter(field_name='unit_price',
                                           lookup_expr='lte')
-    min_bill_amount = filters.NumberFilter(field_name='bill_amount',
+    min_bill_amount = django_filters.NumberFilter(field_name='bill_amount',
                                            lookup_expr='gte')
-    max_bill_amount = filters.NumberFilter(field_name='bill_amount',
+    max_bill_amount = django_filters.NumberFilter(field_name='bill_amount',
                                            lookup_expr='lte')
 
     class Meta:
@@ -41,6 +43,7 @@ class PurchaseItemFilter(DefaultFilterSet):
 # ViewSet for PurchaseItem
 class PurchaseItemViewSet(DefaultViewSet):
     queryset = PurchaseItem.objects.select_related('purchase_bill').all()
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_class = PurchaseItemFilter
     search_fields = [
         'item', 'item_description', 'purchase_bill__purchase_bill_number'
@@ -65,21 +68,21 @@ class PurchaseItemViewSet(DefaultViewSet):
 
 # Filters for PurchaseBill
 class PurchaseBillFilter(DefaultFilterSet):
-    from_business_name = filters.CharFilter(field_name='from_business__name',
+    from_business_name = django_filters.CharFilter(field_name='from_business__name',
                                             lookup_expr='icontains')
-    purchase_bill_number = filters.CharFilter(
+    purchase_bill_number = django_filters.CharFilter(
         field_name='purchase_bill_number', lookup_expr='icontains')
-    min_bill_amount = filters.NumberFilter(field_name='bill_amount',
+    min_bill_amount = django_filters.NumberFilter(field_name='bill_amount',
                                            lookup_expr='gte')
-    max_bill_amount = filters.NumberFilter(field_name='bill_amount',
+    max_bill_amount = django_filters.NumberFilter(field_name='bill_amount',
                                            lookup_expr='lte')
-    min_paid_amount = filters.NumberFilter(field_name='paid_amount',
+    min_paid_amount = django_filters.NumberFilter(field_name='paid_amount',
                                            lookup_expr='gte')
-    max_paid_amount = filters.NumberFilter(field_name='paid_amount',
+    max_paid_amount = django_filters.NumberFilter(field_name='paid_amount',
                                            lookup_expr='lte')
-    purchase_date_after = filters.DateFilter(field_name='purchase_date',
+    purchase_date_after = django_filters.DateFilter(field_name='purchase_date',
                                              lookup_expr='gte')
-    purchase_date_before = filters.DateFilter(field_name='purchase_date',
+    purchase_date_before = django_filters.DateFilter(field_name='purchase_date',
                                               lookup_expr='lte')
 
     class Meta:
@@ -93,6 +96,7 @@ class PurchaseBillFilter(DefaultFilterSet):
 # ViewSet for PurchaseBill
 class PurchaseBillViewSet(DefaultViewSet):
     serializer_class = PurchaseBillSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_class = PurchaseBillFilter
     search_fields = [
         'purchase_bill_number', 'from_business__name', 'notes',
