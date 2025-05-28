@@ -32,7 +32,7 @@ class ExcludeFilterSet(FilterSet):
 class DefaultFilterSet(ExcludeFilterSet):
     created_at = DateTimeFromToRangeFilter(field_name='created_at')
     updated_at = DateTimeFromToRangeFilter(field_name='updated_at')
-    search = CharFilter(method='filter_search', label='Search')
+    search_fields = CharFilter(method='filter_search', label='Search')
 
     def filter_search(self, queryset, name, value):
         view = self.request.parser_context.get("view", None)

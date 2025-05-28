@@ -1,6 +1,8 @@
 from django_filters import rest_framework as django_filters
 from rest_framework import filters
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 from core.utils.viewsets import DefaultFilterSet, DefaultViewSet
 from ..models.purchase_invoice import PurchaseBill, PurchaseItem
@@ -34,8 +36,7 @@ class PurchaseItemFilter(DefaultFilterSet):
     class Meta:
         model = PurchaseItem
         fields = [
-            'purchase_bill', 'purchase_bill_number', 'item',
-            'item_description', 'unit_of_measurement', 'discount_percentage',
+            'unit_of_measurement', 'discount_percentage',
             'tax_percent_applied', 'created_at', 'updated_at'
         ]
 
@@ -52,6 +53,32 @@ class PurchaseItemViewSet(DefaultViewSet):
         'id', 'item', 'quantity', 'unit_price', 'bill_amount', 'created_at',
         'purchase_bill__purchase_bill_number'
     ]  # Includes default ordering fields from DefaultViewSet
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'purchase_bill_pk',
+                openapi.IN_PATH,
+                description="ID of the Purchase Bill",
+                type=openapi.TYPE_INTEGER
+            )
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'purchase_bill_pk',
+                openapi.IN_PATH,
+                description="ID of the Purchase Bill",
+                type=openapi.TYPE_INTEGER
+            )
+        ]
+    )
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -88,8 +115,7 @@ class PurchaseBillFilter(DefaultFilterSet):
     class Meta:
         model = PurchaseBill
         fields = [
-            'from_business', 'from_business_name', 'purchase_bill_number',
-            'status', 'purchase_date', 'created_at', 'updated_at'
+            'from_business', 'status', 'purchase_date', 'created_at', 'updated_at'
         ]
 
 

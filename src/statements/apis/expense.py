@@ -1,6 +1,8 @@
 from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
 from core.utils.viewsets import DefaultViewSet
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from statements.models.expense import ExpenseCategory, Expense, ExpenseItem
 from statements.serializers import ExpenseCategorySerializer, ExpenseSerializer, ExpenseItemSerializer
 
@@ -32,6 +34,32 @@ class ExpenseItemViewSet(DefaultViewSet):
     lookup_field = 'id'
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     search_fields = ['description']
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'expense_pk',
+                openapi.IN_PATH,
+                description="ID of the Expense",
+                type=openapi.TYPE_INTEGER
+            )
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'expense_pk',
+                openapi.IN_PATH,
+                description="ID of the Expense",
+                type=openapi.TYPE_INTEGER
+            )
+        ]
+    )
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
     def get_queryset(self):
         expense_pk = self.kwargs.get('expense_pk')
