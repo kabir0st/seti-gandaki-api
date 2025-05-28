@@ -2,9 +2,11 @@ from decimal import Decimal
 
 from django.db import models
 from django.db.models import signals
-from django.db.models.signals import (post_save, 
+from django.db.models.signals import (post_save,
                                       post_delete)
 from django.dispatch import receiver
+
+from core.utils.functions import to_decimal
 
 from core.utils.models import DefaultModel
 from statements.models.invoice.invoice import Invoice
@@ -57,9 +59,9 @@ class InvoiceItem(DefaultModel):
     @property
     def discount_amount(self):
         if self.discount_percent:
-            return Decimal(
-                (self.sub_total_amount * self.discount_percent) / 100)
-        return Decimal(0.00)
+            return to_decimal(
+                (self.sub_total_amount * self.discount_percent) / to_decimal(100))
+        return to_decimal(0.00)
 
 
 
@@ -67,7 +69,7 @@ class InvoiceItem(DefaultModel):
 @receiver(post_save, sender=InvoiceItem)
 def invoice_item_post_save_handler(sender, created, instance, **kwargs):
 
-    instance.sub_total_amount = Decimal(
+    instance.sub_total_amount = to_decimal(
         instance.price_per_item) * instance.quantity
 
     instance.bill_amount = (instance.sub_total_amount -

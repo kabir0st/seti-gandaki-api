@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.db import models
+from core.utils.functions import to_decimal
 from django.db.models import signals
 from django.db.models.signals import post_save, pre_save, post_delete
 from django.dispatch import receiver
@@ -85,7 +86,7 @@ class ExpenseItem(DefaultModel):
         return f'{self.item_name} - {self.expense}'
 
     def save(self, *args, **kwargs):
-        self.total_price = self.quantity * self.price_per_item
+        self.total_price = to_decimal(self.quantity) * to_decimal(self.price_per_item)
         super().save(*args, **kwargs)
 
 

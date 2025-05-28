@@ -5,6 +5,7 @@ import re
 import string
 from decimal import Decimal
 from functools import wraps
+import numbers
 
 import dateutil.parser
 from django.core.cache import cache
@@ -27,6 +28,26 @@ def convert_decimal_to_string(data):
         return str(data)
     else:
         return data
+
+
+def to_decimal(value):
+    """
+    Safely converts a value to a Decimal object.
+
+    Handles None, Decimal, float, and int inputs.
+    Converts floats via their string representation to maintain precision.
+    """
+    if value is None:
+        return Decimal('0.00')
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, numbers.Real):
+        # Convert float to string first to avoid precision issues
+        return Decimal(str(value))
+    try:
+        return Decimal(value)
+    except Exception:
+        return Decimal('0.00')
 
 
 def clean_data(keys, data):

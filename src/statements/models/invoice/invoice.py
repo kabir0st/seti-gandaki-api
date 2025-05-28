@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.db import models
 from django.db.models import signals
+from core.utils.functions import to_decimal
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils.timezone import now
@@ -183,17 +184,17 @@ def post_save_handler_invoice(sender, instance, *args, **kwargs):
         instance.total_discount_amount += invoice_item.discount_amount
         instance.sub_total_amount += invoice_item.sub_total_amount
 
-    instance.total_discount_amount += Decimal(
+    instance.total_discount_amount += to_decimal(
         instance.additional_discount_amount)
 
     settings = StatementSettings.load()
 
-    instance.bill_amount = Decimal(instance.sub_total_amount) - \
-        Decimal(instance.total_discount_amount)
+    instance.bill_amount = to_decimal(instance.sub_total_amount) - \
+        to_decimal(instance.total_discount_amount)
 
     if instance.is_taxable:
         instance.total_taxable_amount = instance.bill_amount
-        instance.total_tax_amount = Decimal(instance.bill_amount * 0.13)
+        instance.total_tax_amount = instance.bill_amount * Decimal('0.13')
         instance.bill_amount += instance.total_tax_amount
     else:
         instance.total_taxable_amount = Decimal('0.00')

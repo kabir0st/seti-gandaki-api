@@ -8,7 +8,7 @@ from django.db.models.signals import (post_delete, post_save, pre_delete,
 from django.dispatch import receiver
 from django.utils.timezone import now
 
-from core.utils.functions import limit_size
+from core.utils.functions import limit_size, to_decimal
 from statements.models.business import Business
 from statements.models.support import Staff
 from django.utils.translation import gettext_lazy as _
@@ -169,10 +169,10 @@ class PurchaseItem(models.Model):
 @receiver(pre_save, sender=PurchaseItem)
 def calculate_purchase_item_amounts(sender, instance, **kwargs):
     # Ensure all necessary values are Decimal for precision
-    quantity = Decimal(instance.quantity)
-    unit_price = Decimal(instance.unit_price)
-    discount_percentage = Decimal(instance.discount_percentage)
-    tax_percent_applied = Decimal(instance.tax_percent_applied)
+    quantity = to_decimal(instance.quantity)
+    unit_price = to_decimal(instance.unit_price)
+    discount_percentage = to_decimal(instance.discount_percentage)
+    tax_percent_applied = to_decimal(instance.tax_percent_applied)
 
     # Calculate sub_total before discount
     instance.sub_total = quantity * unit_price
@@ -227,9 +227,9 @@ def update_purchase_bill_totals(purchase_bill_instance):
     #  grace_discount + shipping + additional_costs
     total_bill_amount = (
         current_items_bill_total -
-        Decimal(purchase_bill_instance.grace_discount) +
-        Decimal(purchase_bill_instance.shipping_and_handling_costs) +
-        Decimal(purchase_bill_instance.additional_costs))
+        to_decimal(purchase_bill_instance.grace_discount) +
+        to_decimal(purchase_bill_instance.shipping_and_handling_costs) +
+        to_decimal(purchase_bill_instance.additional_costs))
     purchase_bill_instance.bill_amount = total_bill_amount.quantize(
         Decimal('0.01'), rounding=ROUND_HALF_UP)
 
