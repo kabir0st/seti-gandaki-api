@@ -62,8 +62,13 @@ class Expense(DefaultModel):
 
     remarks = models.TextField(blank=True, null=True)
 
+    paid_amount = models.DecimalField(default=0.00,
+                                        max_digits=60,
+                                        decimal_places=2)
+    is_paid = models.BooleanField(default=False)
+
     ALLOW_UPDATE = [
-        'last_updated_by', 'remarks', 'paid_to', 'bill_number', 'payment_date',
+        'last_updated_by', 'remarks', 'paid_to', 'bill_number', 'payment_date', 'paid_amount', 'is_paid',
         'category'
     ]
 
@@ -112,6 +117,34 @@ def expense_item_post_delete_handler(sender, instance, **kwargs):
     expense.save()
     # Reconnect the signal
     signals.post_save.connect(expense_item_post_save_handler, sender=ExpenseItem)
+
+
+@receiver(post_save, sender=Expense)
+def post_save_handler_expense(sender, instance, created, **kwargs):
+    """
+    Updates the paid_amount and is_paid status of an Expense
+    after payments are made or total_amount changes.
+    """
+    current_paid_amount = Decimal("0.00")
+    # The Payment model has a related_name="payments" to Expense
+    for payment in instance.payments.filter(is_refunded=False):
+        current_paid_amount += payment.amount
+
+    needs_save = False
+    if instance.paid_amount != current_paid_amount:
+        instance.paid_amount = current_paid_amount
+        needs_save = True
+
+    new_is_paid_status = instance.total_amount <= instance.paid_amount
+    if instance.is_paid != new_is_paid_status:
+        instance.is_paid = new_is_paid_status
+        needs_save = True
+
+    if needs_save:
+        # Disconnect signal to avoid recursion and save
+        post_save.disconnect(post_save_handler_expense, sender=Expense)
+        instance.save(update_fields=['paid_amount', 'is_paid'])
+        post_save.connect(post_save_handler_expense, sender=Expense)
 
 
 @receiver(pre_save, sender=Expense)

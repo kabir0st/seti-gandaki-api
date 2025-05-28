@@ -201,9 +201,8 @@ def post_save_handler_invoice(sender, instance, *args, **kwargs):
         instance.total_tax_amount = Decimal('0.00')
 
     # # update paid amount here
-    # for payment in instance.payments.filter(is_refunded=False,
-    #                                         is_credit_paid=False):
-    #     instance.paid_amount += payment.amount
+    for payment in instance.payments.filter(is_refunded=False):
+        instance.paid_amount += payment.amount
     instance.is_paid = instance.bill_amount <= instance.paid_amount
     # Trigger rollback if status is CANCELLED
     invoice_pure_save(instance)

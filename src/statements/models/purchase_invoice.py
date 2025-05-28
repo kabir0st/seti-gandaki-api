@@ -81,6 +81,8 @@ class PurchaseBill(models.Model):
                                       decimal_places=2,
                                       default=Decimal("0.00"))
 
+    is_paid = models.BooleanField(default=False)
+
     shipping_handling_receipt = models.ImageField(
         null=True,
         upload_to='purchase_bills',
@@ -113,6 +115,36 @@ class PurchaseBill(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+@receiver(post_save, sender=PurchaseBill)
+def post_save_handler_purchase_bill(sender, instance, created, **kwargs):
+    """
+    Updates the paid_amount and is_paid status of a PurchaseBill
+    after payments are made or bill amount changes.
+    """
+    # This assumes a related field 'payments' exists on PurchaseBill model
+    # similar to the Invoice model. If not, this logic needs adjustment.
+    current_paid_amount = Decimal("0.00")
+    if hasattr(instance, 'payments'): # Check if payments related manager exists
+        for payment in instance.payments.filter(is_refunded=False):
+            current_paid_amount += payment.amount
+    
+    needs_save = False
+    if instance.paid_amount != current_paid_amount:
+        instance.paid_amount = current_paid_amount
+        needs_save = True
+
+    new_is_paid_status = instance.bill_amount <= instance.paid_amount
+    if instance.is_paid != new_is_paid_status:
+        instance.is_paid = new_is_paid_status
+        needs_save = True
+
+    if needs_save:
+        # Disconnect signal to avoid recursion and save
+        post_save.disconnect(post_save_handler_purchase_bill, sender=PurchaseBill)
+        instance.save(update_fields=['paid_amount', 'is_paid'])
+        post_save.connect(post_save_handler_purchase_bill, sender=PurchaseBill)
 
 
 @receiver(pre_delete, sender=PurchaseBill)
