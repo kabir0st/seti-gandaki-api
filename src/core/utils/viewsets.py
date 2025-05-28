@@ -140,7 +140,7 @@ class DefaultViewSet(ModelViewSet):
                 [{
                     'page': '1',
                     'size': '20',
-                    'id_pk': self.kwargs.get('id_pk', None)
+                    'id_id': self.kwargs.get('id_id', None)
                 }])
             cache_key = None
             # check for cache

@@ -1,5 +1,3 @@
-from rest_framework import filters
-from django_filters.rest_framework import DjangoFilterBackend
 from core.utils.viewsets import DefaultViewSet
 
 from ..models import Business
@@ -13,6 +11,5 @@ class BusinessViewSet(DefaultViewSet):
     """
     queryset = Business.objects.all().order_by('-created_at')
     serializer_class = BusinessSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_class = BusinessFilterSet
     search_fields = ['name', 'registration_number']

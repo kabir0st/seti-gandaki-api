@@ -1,8 +1,5 @@
 from django_filters import rest_framework as django_filters
-from rest_framework import filters
-from django_filters.rest_framework import DjangoFilterBackend
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
+from rest_framework.exceptions import ValidationError
 
 from core.utils.viewsets import DefaultFilterSet, DefaultViewSet
 from ..models.purchase_invoice import PurchaseBill, PurchaseItem
@@ -44,7 +41,6 @@ class PurchaseItemFilter(DefaultFilterSet):
 # ViewSet for PurchaseItem
 class PurchaseItemViewSet(DefaultViewSet):
     queryset = PurchaseItem.objects.select_related('purchase_bill').all()
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_class = PurchaseItemFilter
     search_fields = [
         'item', 'item_description', 'purchase_bill__purchase_bill_number'
@@ -54,38 +50,14 @@ class PurchaseItemViewSet(DefaultViewSet):
         'purchase_bill__purchase_bill_number'
     ]  # Includes default ordering fields from DefaultViewSet
 
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter(
-                'purchase_bill_pk',
-                openapi.IN_PATH,
-                description="ID of the Purchase Bill",
-                type=openapi.TYPE_INTEGER
-            )
-        ]
-    )
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
-
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter(
-                'purchase_bill_pk',
-                openapi.IN_PATH,
-                description="ID of the Purchase Bill",
-                type=openapi.TYPE_INTEGER
-            )
-        ]
-    )
-    def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
-
     def get_queryset(self):
         queryset = super().get_queryset()
-        purchase_bill_id = self.kwargs.get('purchase_bill_pk')
+        purchase_bill_id = self.kwargs.get('purchase_bill_id')
         if purchase_bill_id:
             queryset = queryset.filter(purchase_bill__id=purchase_bill_id)
-        return queryset
+            return queryset
+        # If no purchase_bill_id is provided, raise an error
+        return queryset.none()
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -122,7 +94,6 @@ class PurchaseBillFilter(DefaultFilterSet):
 # ViewSet for PurchaseBill
 class PurchaseBillViewSet(DefaultViewSet):
     serializer_class = PurchaseBillSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_class = PurchaseBillFilter
     search_fields = [
         'purchase_bill_number', 'from_business__name', 'notes',
