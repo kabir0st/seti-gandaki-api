@@ -49,7 +49,7 @@ class InvoiceItem(DefaultModel):
     ]
 
     def __str__(self):
-        return f'{self.item} - {self.invoice}'
+        return f'{self.item_name} - {self.invoice}'
 
     def save(self, *args, **kwargs):
         self.trigger_value = None
