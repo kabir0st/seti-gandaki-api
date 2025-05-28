@@ -8,6 +8,7 @@ from .apis.support import StaffViewSet
 from .apis.invoice import InvoiceViewSet, InvoiceItemViewSet
 from .apis.settings import StatementSettingsAPIView
 from .apis.expense import ExpenseCategoryViewSet, ExpenseViewSet, ExpenseItemViewSet
+from .apis.payment import PaymentViewSet # Added import
 from rest_framework_nested.routers import SimpleRouter, NestedSimpleRouter
 
 
@@ -24,6 +25,7 @@ router.register('purchase-bills', PurchaseBillViewSet, basename='PurchaseBill')
 router.register('invoices', InvoiceViewSet, basename='Invoice')
 
 router.register('expenses', ExpenseViewSet, basename='Expense')
+router.register('payments', PaymentViewSet, basename='Payment') # Registered PaymentViewSet
 
 purchase_bills_router = NestedSimpleRouter(router,
                                            'purchase-bills',

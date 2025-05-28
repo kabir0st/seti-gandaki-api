@@ -4,6 +4,7 @@ from .vehicle import VehicleViewSet
 from .gatepass import GatePassViewSet
 from .triplog import TripLogViewSet
 from .invoice import InvoiceViewSet, InvoiceItemViewSet
+from .payment import PaymentViewSet
 
 __all__ = [
     "BusinessViewSet",
@@ -14,4 +15,5 @@ __all__ = [
     "TripLogViewSet",
     "InvoiceViewSet",
     "InvoiceItemViewSet",
+    "PaymentViewSet",
 ]

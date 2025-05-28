@@ -7,6 +7,7 @@ from .models.invoice.invoice import Invoice
 from .models.invoice.invoice_item import InvoiceItem
 from .models.settings import StatementSettings
 from .models.expense import ExpenseCategory, Expense, ExpenseItem
+from .models.payments import Payment
 
 
 # Serializer for Business model
@@ -324,8 +325,215 @@ class ExpenseItemSerializer(serializers.ModelSerializer):
         read_only_fields = ['total_amount']
 
 
+class PaymentSerializer(serializers.ModelSerializer):
+    created_by_details = serializers.StringRelatedField(source='created_by', read_only=True, allow_null=True)
+    # To avoid circular dependency, we will use StringRelatedField or PrimaryKeyRelatedField for related models
+    # or define them as forward references if DRF version supports it well.
+    # For now, let's defer full nested serializers for invoice/purchase_bill/expense details within payment
+    # to avoid complexity or ensure they are defined before PaymentSerializer.
+    # We can add simple string representations or IDs.
+    # invoice_details = InvoiceSerializer(source='invoice', read_only=True, allow_null=True) # Potential circular import
+    # purchase_bill_details = PurchaseBillSerializer(source='purchase_bill', read_only=True, allow_null=True) # Potential circular import
+    # expense_details = ExpenseSerializer(source='expense', read_only=True, allow_null=True) # Potential circular import
+    payment_for = serializers.ReadOnlyField()
+
+    class Meta:
+        model = Payment
+        fields = [
+            'id',
+            'created_by',
+            'created_by_details',
+            'header',
+            'invoice', # FK ID
+            'purchase_bill', # FK ID
+            'expense', # FK ID
+            'amount',
+            'remarks',
+            'receipt',
+            'is_refunded',
+            'payment_for', # Property method
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ('created_at', 'updated_at', 'payment_for')
+        extra_kwargs = {
+            'invoice': {'allow_null': True, 'required': False},
+            'purchase_bill': {'allow_null': True, 'required': False},
+            'expense': {'allow_null': True, 'required': False},
+            'created_by': {'allow_null': True, 'required': False},
+        }
+
+    def validate(self, data):
+        related_objects = ['invoice', 'purchase_bill', 'expense']
+        provided_relations = [obj for obj in related_objects if data.get(obj)]
+
+        if len(provided_relations) == 0:
+            pass # Allowing manual payments
+
+        if len(provided_relations) > 1:
+            raise serializers.ValidationError(
+                "A payment can only be associated with one of: Invoice, Purchase Bill, or Expense."
+            )
+        return data
+
+
+# Serializer for PurchaseBill
+class PurchaseBillSerializer(serializers.ModelSerializer):
+    purchase_items = PurchaseItemBaseSerializer(many=True, read_only=True)
+    from_business_details = BusinessSerializer(source='from_business',
+                                               read_only=True,
+                                               allow_null=True)
+    from_business = serializers.PrimaryKeyRelatedField(
+        queryset=Business.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+    payments = PaymentSerializer(many=True, read_only=True) # Added payments
+
+    class Meta:
+        model = PurchaseBill
+        fields = (
+            'id',
+            'purchase_date',
+            'from_business',
+            'from_business_details',
+            'purchase_bill_number',
+            'sub_total',
+            'grace_discount',
+            'shipping_and_handling_costs',
+            'additional_costs',
+            'additional_costs_remarks',
+            'bill_amount',
+            'paid_amount',
+            'shipping_handling_receipt',
+            'status',
+            'purchase_receipt',
+            'notes',
+            'created_at',
+            'updated_at',
+            'purchase_items',
+            'payments' # Added payments
+        )
+        read_only_fields = (
+            'sub_total',
+            'bill_amount',
+        )
+
+
+class InvoiceSerializer(serializers.ModelSerializer):
+    invoice_items = InvoiceItemSerializer(many=True)
+    customer_details = BusinessSerializer(source='customer',
+                                          read_only=True,
+                                          allow_null=True)
+    payments = PaymentSerializer(many=True, read_only=True) # Added payments
+
+    class Meta:
+        model = Invoice
+        fields = [
+            'id',
+            'created_by',
+            'last_updated_by',
+            'cancelled_by',
+            'customer',
+            'customer_details',
+            'customer_name',
+            'customer_phone_number',
+            'customer_pan',
+            'invoiced_on',
+            'due_on',
+            'invoice_number',
+            'status',
+            'delivery_charge',
+            'delivery_location',
+            'delivery_note',
+            'tracking_code',
+            'weight_unit',
+            'total_weight',
+            'additional_charge_amount',
+            'additional_charge_note',
+            'additional_discount_amount',
+            'additional_discount_note',
+            'sub_total_amount',
+            'total_discount_amount',
+            'total_taxable_amount',
+            'total_tax_amount',
+            'bill_amount',
+            'paid_amount',
+            'serial',
+            'fiscal_year_ad',
+            'fiscal_year_bs',
+            'is_paid',
+            'remarks',
+            'is_taxable',
+            'invoice_items',
+            'payments', # Added payments
+        ]
+        read_only_fields = [
+            'invoice_number',
+            'sub_total_amount',
+            'total_discount_amount',
+            'total_taxable_amount',
+            'total_tax_amount',
+            'bill_amount',
+            'paid_amount',
+            'serial',
+            'fiscal_year_ad',
+            'fiscal_year_bs',
+            'is_paid',
+        ]
+
+    def create(self, validated_data):
+        invoice_items_data = validated_data.pop('invoice_items')
+        invoice = Invoice.objects.create(**validated_data)
+        for item_data in invoice_items_data:
+            InvoiceItem.objects.create(invoice=invoice, **item_data)
+        return invoice
+
+    def update(self, instance, validated_data):
+        if instance.status != Invoice.InvoiceStatus.DRAFT and instance.invoice_number:
+            if 'is_taxable' in validated_data and validated_data['is_taxable'] != instance.is_taxable:
+                raise serializers.ValidationError("Cannot change 'is_taxable' once invoice is approved and has an invoice number.")
+
+        invoice_items_data = validated_data.pop('invoice_items', [])
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        for item_data in invoice_items_data:
+            item_id = item_data.get('id')
+            if item_id:
+                try:
+                    invoice_item = InvoiceItem.objects.get(id=item_id, invoice=instance)
+                    for attr, value in item_data.items():
+                        setattr(invoice_item, attr, value)
+                    invoice_item.save()
+                except InvoiceItem.DoesNotExist:
+                    pass
+            else:
+                InvoiceItem.objects.create(invoice=instance, **item_data)
+
+        return instance
+
+
+class StatementSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StatementSettings
+        fields = '__all__'
+
+
+class ExpenseCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExpenseCategory
+        fields = '__all__'
+
+
+# Note: PaymentSerializer was moved up
+
+
 class ExpenseSerializer(serializers.ModelSerializer):
     expense_items = ExpenseItemSerializer(many=True)
+    payments = PaymentSerializer(many=True, read_only=True) # Added payments
 
     class Meta:
         model = Expense
@@ -344,6 +552,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
             'expense_items',
+            'payments', # Added payments
         ]
         read_only_fields = ['total_amount']
 
@@ -357,12 +566,10 @@ class ExpenseSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         expense_items_data = validated_data.pop('expense_items', [])
 
-        # Update expense fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
-        # Update or create expense items
         for item_data in expense_items_data:
             item_id = item_data.get('id')
             if item_id:

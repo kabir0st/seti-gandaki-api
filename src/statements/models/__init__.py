@@ -4,6 +4,7 @@ from .logistics import Vehicle, GatePass, TripLog
 from .invoice import Invoice, InvoiceItem
 from .expense import ExpenseCategory, Expense, ExpenseItem
 from .support import Staff
+from .payments import Payment
 
 __all__ = [
     "Business",
@@ -16,5 +17,5 @@ __all__ = [
     "Staff",
     "ExpenseCategory",
     "Expense",
-    "ExpenseItem"
+    "ExpenseItem","Payment"
 ]
