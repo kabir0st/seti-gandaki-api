@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models.fuel import PetrolStation, FuelTicket 
+from .models.fuel import PetrolStation, FuelTicket
+from .models.attendance import Attendance # Import Attendance model
 from unfold.admin import ModelAdmin
 
 @admin.register(PetrolStation)
@@ -53,3 +54,28 @@ class FuelTicketAdmin(ModelAdmin):
                 'consumed_by_station' # Allow changing station if error? Or lock it?
             ])
         return readonly
+
+@admin.register(Attendance)
+class AttendanceAdmin(ModelAdmin):
+    list_display = ('staff', 'date', 'check_in_time', 'check_out_time', 'status', 'created_at', 'updated_at')
+    search_fields = ('staff__name', 'staff__pan', 'date')
+    list_filter = ('status', 'date', 'created_at')
+    readonly_fields = ('created_at', 'updated_at')
+    autocomplete_fields = ['staff']
+    date_hierarchy = 'date'
+
+    fieldsets = (
+        (None, {
+            'fields': ('staff', 'date', 'status')
+        }),
+        ('Timings', {
+            'fields': ('check_in_time', 'check_out_time')
+        }),
+        ('Additional Information', {
+            'fields': ('remarks',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )

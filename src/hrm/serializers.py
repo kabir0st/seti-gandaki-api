@@ -1,6 +1,8 @@
 from django.core.validators import RegexValidator
 from rest_framework import serializers
 from hrm.models.fuel import FuelTicket, PetrolStation
+from hrm.models.attendance import Attendance, AttendanceChoice
+from statements.serializers import StaffSerializer # Import StaffSerializer
 from system.serializers.users import MiniUserBaseSerializer
 
 class PetrolStationSerializer(serializers.ModelSerializer):
@@ -86,3 +88,39 @@ class FuelTicketPublicDetailSerializer(serializers.ModelSerializer):
             'dispatched_by', 'created_at', 'is_consumed'
         )
         read_only_fields = fields
+
+
+class AttendanceSerializer(serializers.ModelSerializer):
+    staff = StaffSerializer(read_only=True)
+    staff_id = serializers.PrimaryKeyRelatedField(
+        queryset=StaffSerializer.Meta.model.objects.all(), # Use Staff model from StaffSerializer
+        source='staff',
+        write_only=True
+    )
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = Attendance
+        fields = (
+            'id', 'staff', 'staff_id', 'date', 'check_in_time', 'check_out_time',
+            'status', 'status_display', 'remarks', 'created_at', 'updated_at'
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at', 'status_display')
+
+    def validate(self, data):
+        staff = data.get('staff')
+        date = data.get('date')
+
+        # For POST (create)
+        if not self.instance:
+            if Attendance.objects.filter(staff=staff, date=date).exists():
+                raise serializers.ValidationError(
+                    {"detail": f"Attendance for {staff.name} on {date} already exists."}
+                )
+        # For PUT/PATCH (update)
+        else:
+            if Attendance.objects.filter(staff=staff, date=date).exclude(pk=self.instance.pk).exists():
+                raise serializers.ValidationError(
+                    {"detail": f"Attendance for {staff.name} on {date} already exists."}
+                )
+        return data
