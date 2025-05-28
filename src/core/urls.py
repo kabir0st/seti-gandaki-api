@@ -23,6 +23,7 @@ SchemaView = get_schema_view(
 urlpatterns = [
     path('api/system/', include('system.urls')),
     path('api/statements/', include('statements.urls')),
+    path('api/hrm/', include('hrm.urls')), # Changed from fuel to hrm
     path("docs/",
          SchemaView.with_ui('swagger', cache_timeout=0),
          name='schema-swagger-ui'),

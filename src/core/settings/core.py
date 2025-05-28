@@ -15,6 +15,7 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig',
     'system',
     'statements',
+    'hrm', # Ensure hrm is here, remove fuel app
     # libs
     'daphne',
     'channels',
