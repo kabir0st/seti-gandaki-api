@@ -6,6 +6,7 @@ from .models.logistics import GatePass, GatePassMovement, TripLog, Vehicle
 from .models.purchase_invoice import PurchaseBill, PurchaseItem
 from .models.invoice.invoice import Invoice
 from .models.invoice.invoice_item import InvoiceItem
+from .models.expense import ExpenseCategory, Expense, ExpenseItem
 
 
 @admin.register(Business)
@@ -81,6 +82,39 @@ class InvoiceAdmin(ModelAdmin):
     date_hierarchy = 'invoiced_on'
     ordering = ('-invoiced_on',)
 
+
+@admin.register(ExpenseCategory)
+class ExpenseCategoryAdmin(ModelAdmin):
+    list_display = ('name', 'description', 'created_at', 'updated_at')
+    search_fields = ('name',)
+    ordering = ('name',)
+
+
+class ExpenseItemInline(TabularInline):
+    model = ExpenseItem
+    extra = 1
+    autocomplete_fields = []
+
+
+@admin.register(Expense)
+class ExpenseAdmin(ModelAdmin):
+    list_display = (
+        'id',
+        'category',
+        'paid_to',
+        'bill_number',
+        'payment_date',
+        'total_amount',
+        'status',
+        'created_by',
+        'created_at',
+    )
+    list_filter = ('status', 'category', 'payment_date')
+    search_fields = ('paid_to', 'bill_number', 'remarks')
+    autocomplete_fields = ['category', 'created_by', 'last_updated_by', 'cancelled_by']
+    inlines = [ExpenseItemInline]
+    date_hierarchy = 'payment_date'
+    ordering = ('-payment_date',)
 
 @admin.register(PurchaseItem)
 class PurchaseItemAdmin(ModelAdmin):
