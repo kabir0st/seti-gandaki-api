@@ -1,6 +1,7 @@
+from django.core.validators import RegexValidator
 from rest_framework import serializers
 from hrm.models.fuel import FuelTicket, PetrolStation
-from system.serializers.users import MiniUserBaseSerializer 
+from system.serializers.users import MiniUserBaseSerializer
 
 class PetrolStationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -52,7 +53,7 @@ class FuelTicketSerializer(serializers.ModelSerializer):
 class FuelTicketConsumeSerializer(serializers.Serializer):
     station_code = serializers.CharField(
         max_length=4,
-        validators=[serializers.RegexValidator(r'^\d{4}$', 'Station code must be 4 digits.')]
+        validators=[RegexValidator(r'^\d{4}$', 'Station code must be 4 digits.')]
     )
 
     def validate_station_code(self, value):
