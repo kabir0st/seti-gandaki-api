@@ -53,13 +53,14 @@ def get_missing_serial(years):
     return None
 
 
-def generate_invoice_number(invoice):
+def generate_invoice_number(invoice, is_taxable):
     years = get_fiscal_year(invoice.invoiced_on)
     serial = None
     Invoice = apps.get_model('statements.Invoice')
     latest = Invoice.objects.filter(
         branch=invoice.branch,
-        fiscal_year_bs=years['bs']).order_by('-serial').first()
+        fiscal_year_bs=years['bs'],
+        is_taxable=is_taxable).order_by('-serial').first()
     if latest:
         serial = latest.serial
         serial = serial + 1
@@ -67,4 +68,8 @@ def generate_invoice_number(invoice):
         serial = 1
     invoice_number = invoice.branch.code + \
         str(serial).zfill(6) + "-" + years['bs']
+    if is_taxable:
+        invoice_number = "TAX-" + invoice_number
+    else:
+        invoice_number = "NT-" + invoice_number
     return ([invoice_number, years, str(serial).zfill(6)])

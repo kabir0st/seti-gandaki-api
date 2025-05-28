@@ -7,6 +7,7 @@ from .apis.vehicle import VehicleViewSet
 from .apis.gatepass import GatePassViewSet
 from .apis.triplog import TripLogViewSet
 from .apis.support import StaffViewSet
+from .apis.invoice import InvoiceViewSet, InvoiceItemViewSet
 
 router = DefaultRouter()
 router.register('purchase-bills', PurchaseBillViewSet, basename='PurchaseBill')
@@ -15,6 +16,7 @@ router.register('vehicles', VehicleViewSet, basename='Vehicle')
 router.register('gate-passes', GatePassViewSet, basename='GatePass')
 router.register('trip-logs', TripLogViewSet, basename='TripLog')
 router.register('staffs', StaffViewSet, basename='Staff')
+router.register('invoices', InvoiceViewSet, basename='Invoice')
 
 purchase_bills_router = NestedSimpleRouter(router,
                                            'purchase-bills',
@@ -23,7 +25,11 @@ purchase_bills_router.register('purchase-items',
                                PurchaseItemViewSet,
                                basename='purchase-bill-items')
 
+invoices_router = NestedSimpleRouter(router, 'invoices', lookup='invoice')
+invoices_router.register('items', InvoiceItemViewSet, basename='invoice-items')
+
 urlpatterns = [
     path('', include(router.urls)),
     path('', include(purchase_bills_router.urls)),
+    path('', include(invoices_router.urls)),
 ]

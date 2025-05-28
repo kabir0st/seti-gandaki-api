@@ -3,6 +3,8 @@ from .models.purchase_invoice import PurchaseBill, PurchaseItem
 from .models.business import Business
 from .models.logistics import Vehicle, GatePass, GatePassMovement, TripLog
 from .models.support import Staff
+from .models.invoice.invoice import Invoice
+from .models.invoice.invoice_item import InvoiceItem
 
 
 # Serializer for Business model
@@ -176,3 +178,120 @@ class PurchaseBillSerializer(serializers.ModelSerializer):
             'sub_total',
             'bill_amount',
         )
+
+
+class InvoiceItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InvoiceItem
+        fields = [
+            'id',
+            'item_name',
+            'quantity',
+            'unit',
+            'price_per_item',
+            'discount_percent',
+            'discount_remarks',
+            'sub_total_amount',
+            'bill_amount',
+        ]
+        read_only_fields = ['sub_total_amount', 'bill_amount']
+
+
+class InvoiceSerializer(serializers.ModelSerializer):
+    invoice_items = InvoiceItemSerializer(many=True)
+    customer_details = BusinessSerializer(source='customer',
+                                          read_only=True,
+                                          allow_null=True)
+
+    class Meta:
+        model = Invoice
+        fields = [
+            'id',
+            'created_by',
+            'last_updated_by',
+            'cancelled_by',
+            'customer',
+            'customer_details',
+            'customer_name',
+            'customer_phone_number',
+            'customer_pan',
+            'invoiced_on',
+            'due_on',
+            'invoice_number',
+            'status',
+            'delivery_charge',
+            'delivery_location',
+            'delivery_note',
+            'tracking_code',
+            'weight_unit',
+            'total_weight',
+            'additional_charge_amount',
+            'additional_charge_note',
+            'additional_discount_amount',
+            'additional_discount_note',
+            'sub_total_amount',
+            'total_discount_amount',
+            'total_taxable_amount',
+            'total_tax_amount',
+            'bill_amount',
+            'paid_amount',
+            'serial',
+            'fiscal_year_ad',
+            'fiscal_year_bs',
+            'is_paid',
+            'remarks',
+            'is_taxable',
+            'invoice_items',
+        ]
+        read_only_fields = [
+            'invoice_number',
+            'sub_total_amount',
+            'total_discount_amount',
+            'total_taxable_amount',
+            'total_tax_amount',
+            'bill_amount',
+            'paid_amount',
+            'serial',
+            'fiscal_year_ad',
+            'fiscal_year_bs',
+            'is_paid',
+        ]
+
+    def create(self, validated_data):
+        invoice_items_data = validated_data.pop('invoice_items')
+        invoice = Invoice.objects.create(**validated_data)
+        for item_data in invoice_items_data:
+            InvoiceItem.objects.create(invoice=invoice, **item_data)
+        return invoice
+
+    def update(self, instance, validated_data):
+        # Prevent changing is_taxable if invoice is not in draft and has an invoice number
+        if instance.status != Invoice.InvoiceStatus.DRAFT and instance.invoice_number:
+            if 'is_taxable' in validated_data and validated_data['is_taxable'] != instance.is_taxable:
+                raise serializers.ValidationError("Cannot change 'is_taxable' once invoice is approved and has an invoice number.")
+
+        invoice_items_data = validated_data.pop('invoice_items', [])
+
+        # Update invoice fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Update or create invoice items
+        # This is a simplified approach. For more robust handling (e.g., deleting removed items),
+        # you'd need more complex logic.
+        for item_data in invoice_items_data:
+            item_id = item_data.get('id')
+            if item_id:
+                try:
+                    invoice_item = InvoiceItem.objects.get(id=item_id, invoice=instance)
+                    for attr, value in item_data.items():
+                        setattr(invoice_item, attr, value)
+                    invoice_item.save()
+                except InvoiceItem.DoesNotExist:
+                    # Handle case where item_id is provided but doesn't exist for this invoice
+                    pass
+            else:
+                InvoiceItem.objects.create(invoice=instance, **item_data)
+
+        return instance

@@ -4,6 +4,8 @@ from unfold.admin import ModelAdmin, TabularInline
 from .models.business import Business
 from .models.logistics import GatePass, GatePassMovement, TripLog, Vehicle
 from .models.purchase_invoice import PurchaseBill, PurchaseItem
+from .models.invoice.invoice import Invoice
+from .models.invoice.invoice_item import InvoiceItem
 
 
 @admin.register(Business)
@@ -47,6 +49,37 @@ class PurchaseBillAdmin(ModelAdmin):
     inlines = [PurchaseItemInline]
     date_hierarchy = 'purchase_date'
     ordering = ('-purchase_date', )
+
+
+class InvoiceItemInline(TabularInline):
+    model = InvoiceItem
+    extra = 1
+    autocomplete_fields = []
+
+
+@admin.register(Invoice)
+class InvoiceAdmin(ModelAdmin):
+    list_display = (
+        'invoice_number',
+        'customer_name',
+        'invoiced_on',
+        'bill_amount',
+        'paid_amount',
+        'status',
+        'is_taxable',
+        'created_at',
+    )
+    search_fields = (
+        'invoice_number',
+        'customer_name',
+        'customer_phone_number',
+        'customer_pan',
+    )
+    list_filter = ('status', 'is_taxable', 'invoiced_on')
+    autocomplete_fields = ['customer', 'created_by', 'last_updated_by', 'cancelled_by']
+    inlines = [InvoiceItemInline]
+    date_hierarchy = 'invoiced_on'
+    ordering = ('-invoiced_on',)
 
 
 @admin.register(PurchaseItem)
