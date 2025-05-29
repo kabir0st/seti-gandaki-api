@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models.fuel import PetrolStation, FuelTicket
 from .models.attendance import Attendance # Import Attendance model
+from .models.salary import SalaryDisbursement # Import SalaryDisbursement model
 from unfold.admin import ModelAdmin
 
 @admin.register(PetrolStation)
@@ -79,3 +80,30 @@ class AttendanceAdmin(ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+@admin.register(SalaryDisbursement)
+class SalaryDisbursementAdmin(ModelAdmin):
+    list_display = ('staff', 'from_date', 'to_date', 'amount', 'created_by', 'created_at')
+    search_fields = ('staff__name', 'staff__pan', 'from_date', 'to_date')
+    list_filter = ('from_date', 'to_date', 'created_at', 'created_by', 'staff')
+    readonly_fields = ('created_at', 'updated_at', 'created_by')
+    autocomplete_fields = ['staff', 'created_by']
+    date_hierarchy = 'from_date'
+
+    fieldsets = (
+        (None, {
+            'fields': ('staff', ('from_date', 'to_date'), 'amount')
+        }),
+        ('Additional Information', {
+            'fields': ('remarks',)
+        }),
+        ('Audit Information', {
+            'fields': ('created_by', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def save_model(self, request, obj, form, change):
+        if not obj.pk: # if creating new object
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)

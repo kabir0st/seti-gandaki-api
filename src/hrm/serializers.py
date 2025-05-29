@@ -4,6 +4,7 @@ from rest_framework import serializers
 from hrm.models.fuel import FuelTicket, PetrolStation
 from hrm.models.attendance import Attendance, AttendanceChoice
 from statements.serializers import StaffSerializer # Import StaffSerializer
+from hrm.models.salary import SalaryDisbursement
 from system.serializers.users import MiniUserBaseSerializer
 
 class PetrolStationSerializer(serializers.ModelSerializer):
@@ -139,3 +140,23 @@ class AttendanceSerializer(serializers.ModelSerializer):
                     {"detail": f"Attendance for {staff.name} on {date} already exists."}
                 )
         return data
+class SalaryDisbursementSerializer(serializers.ModelSerializer):
+    staff = StaffSerializer(read_only=True)
+    staff_id = serializers.PrimaryKeyRelatedField(
+        queryset=StaffSerializer.Meta.model.objects.all(),
+        source='staff',
+        write_only=True
+    )
+    created_by = MiniUserBaseSerializer(read_only=True)
+
+    class Meta:
+        model = SalaryDisbursement
+        fields = (
+            'id', 'staff', 'staff_id', 'from_date', 'to_date', 'amount',
+            'remarks', 'created_by', 'created_at', 'updated_at'
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at', 'created_by')
+
+    def create(self, validated_data):
+        validated_data['created_by'] = self.context['request'].user
+        return super().create(validated_data)
