@@ -55,7 +55,14 @@ class FuelTicketSerializer(serializers.ModelSerializer):
 class FuelTicketConsumeSerializer(serializers.Serializer):
     station_code = serializers.CharField(
         max_length=4,
-        validators=[RegexValidator(r'^\d{4}$', 'Station code must be 4 digits.')]
+        validators=[RegexValidator(r'^\d{4}$', 'Station code must be 4 digits.')],
+        required=True
+    )
+    bill_amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[serializers.MinValueValidator(Decimal('0.01'))],
+        required=True
     )
 
     def validate_station_code(self, value):
@@ -69,10 +76,17 @@ class FuelTicketConsumeSerializer(serializers.Serializer):
     def save(self, **kwargs):
         ticket = self.context['ticket'] 
         station = self.context['station']
+        validated_data = self.validated_data # Access validated_data here
         
         if ticket.is_consumed:
             raise serializers.ValidationError(f"Ticket already consumed at {ticket.consumed_by_station.name} on {ticket.consumed_at.strftime('%Y-%m-%d %H:%M')}.")
 
+        # Set the bill_amount on the ticket instance from validated data
+        ticket.bill_amount = validated_data.get('bill_amount')
+        
+        # Pass bill_amount to mark_as_consumed if that method is adapted to take it,
+        # or ensure mark_as_consumed saves it if it's part of update_fields.
+        # For now, bill_amount is set on the instance, mark_as_consumed will save it if included in update_fields.
         ticket.mark_as_consumed(station=station)
         return ticket
 

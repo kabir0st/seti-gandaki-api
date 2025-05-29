@@ -120,5 +120,6 @@ class FuelTicket(DefaultModel):
             self.consumed_at = models.functions.Now() # Requires: from django.db.models import functions
             self.consumed_by_station = station
             if commit:
-                self.save(update_fields=['is_consumed', 'consumed_at', 'consumed_by_station'])
+                # bill_amount is set on the instance before this method is called by the serializer
+                self.save(update_fields=['is_consumed', 'consumed_at', 'consumed_by_station', 'bill_amount'])
         # else: raise some error or handle already consumed case
