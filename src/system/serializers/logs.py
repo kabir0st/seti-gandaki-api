@@ -32,7 +32,16 @@ class LogEntrySerializer(serializers.ModelSerializer):
         }
 
     def get_changes(self, obj):
-        return json.loads(obj.changes)
+        changes_data = obj.changes
+        if isinstance(changes_data, dict):
+            return changes_data
+        if isinstance(changes_data, str) and changes_data:
+            try:
+                return json.loads(changes_data)
+            except json.JSONDecodeError:
+                # Handle cases where the string is not valid JSON
+                return {"error": "Invalid JSON format in changes"}
+        return {} # Default for None, empty string, or other unexpected types
 
     def get_action(self, obj):
         actions = ['CREATE', 'UPDATE', 'DELETE', 'ACCESS']
