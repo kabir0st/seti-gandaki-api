@@ -18,7 +18,7 @@ from hrm.serializers import (
 )
 
 class PetrolStationViewSet(DefaultViewSet):
-    queryset = PetrolStation.objects.filter(is_active=True)
+    queryset = PetrolStation.objects.filter()
     serializer_class = PetrolStationSerializer
     # permission_classes = [permissions.IsAdminUser]
 
