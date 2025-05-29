@@ -20,7 +20,25 @@ class InvoiceItemViewSet(DefaultViewSet):
 
     def get_queryset(self):
         invoice_id = self.kwargs.get('invoice_pk')
-        if invoice_id:
-            return InvoiceItem.objects.filter(invoice_id=invoice_id)
-        # If no invoice_id is provided, raise an error
-        return InvoiceItem.objects.none()
+        if not invoice_id:
+            # If no invoice_id is provided in the URL, return an empty queryset
+            # or raise an error, depending on desired behavior for non-nested access.
+            # For a strictly nested route, this scenario might not even be hit if
+            # the URL always enforces invoice_pk.
+            return InvoiceItem.objects.none()
+        try:
+            # Ensure the invoice actually exists
+            Invoice.objects.get(pk=invoice_id)
+        except Invoice.DoesNotExist:
+            raise ValidationError(f"Invoice with id {invoice_id} does not exist.")
+        return InvoiceItem.objects.filter(invoice_id=invoice_id)
+
+    def perform_create(self, serializer):
+        invoice_id = self.kwargs.get('invoice_pk')
+        if not invoice_id:
+            raise ValidationError("Invoice ID must be provided in the URL.")
+        try:
+            invoice = Invoice.objects.get(pk=invoice_id)
+        except Invoice.DoesNotExist:
+            raise ValidationError(f"Invoice with id {invoice_id} does not exist.")
+        serializer.save(invoice=invoice)
