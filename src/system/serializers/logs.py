@@ -21,7 +21,7 @@ class LogEntrySerializer(serializers.ModelSerializer):
             return {
                 'uuid': str(obj.actor.uuid),
                 'full_name': f"{obj.actor.given_name} {obj.actor.family_name}",
-                'designation': obj.actor.designation
+                'designation': getattr(obj.actor, 'designation', None)
             }
         return {'uuid': None, 'full_name': "System", 'designation': 'System'}
 
@@ -50,5 +50,5 @@ class AuthLogSerializer(serializers.ModelSerializer):
         return {
             'uuid': str(obj.user.uuid),
             'full_name': f"{obj.user.given_name} {obj.user.family_name}",
-            'designation': obj.user.designation
+            'designation': getattr(obj.user, 'designation', None)
         }

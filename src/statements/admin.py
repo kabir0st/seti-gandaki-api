@@ -228,7 +228,7 @@ class StatementSettingsAdmin(ModelAdmin):
 
 @admin.register(Staff)
 class StaffAdmin(ModelAdmin):
-    list_display = ('name', 'phone_number', 'pan', 'assigned_salary',
+    list_display = ('name', 'phone_number', 'pan', 'enrollment_date', 'assigned_salary',
                     'updated_at')
     search_fields = ('name', 'phone_number', 'pan')
     list_filter = ('updated_at', )

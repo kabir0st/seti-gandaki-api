@@ -32,6 +32,7 @@ class Staff(models.Model):
                                           default=Decimal("0.00"))
 
     address = models.TextField(_("Address"), blank=True, null=True)
+    enrollment_date = models.DateField(_("Enrollment Date"), blank=True, null=True)
 
     updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
 
