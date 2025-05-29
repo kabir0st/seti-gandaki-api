@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.db import models
-from django.db.models import signals
+from django.db.models import signals, Sum
 from core.utils.functions import to_decimal
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
@@ -174,35 +174,46 @@ def post_save_handler_invoice(sender, instance, *args, **kwargs):
         instance.fiscal_year_bs = x[1]['bs']
         instance.serial = x[2]
 
+    # Reset amounts
     instance.sub_total_amount = Decimal('0.00')
     instance.total_discount_amount = Decimal('0.00')
-
     instance.paid_amount = Decimal('0.00')
 
-    for invoice_item in instance.invoice_items.filter():
-        instance.total_discount_amount += invoice_item.discount_amount
-        instance.sub_total_amount += invoice_item.sub_total_amount
+    # Aggregate invoice items
+    item_aggregates = instance.invoice_items.aggregate(
+        total_item_discount=Sum('discount_amount'),
+        total_item_sub_total=Sum('sub_total_amount')
+    )
+    instance.sub_total_amount = item_aggregates['total_item_sub_total'] or Decimal('0.00')
+    instance.total_discount_amount = item_aggregates['total_item_discount'] or Decimal('0.00')
 
+    # Add additional discount
     instance.total_discount_amount += to_decimal(
         instance.additional_discount_amount)
 
-    settings = StatementSettings.load()
+    settings = StatementSettings.load() # Assuming this is efficient or out of scope for current optimization
 
+    # Calculate bill amount before tax
     instance.bill_amount = to_decimal(instance.sub_total_amount) - \
         to_decimal(instance.total_discount_amount)
 
+    # Apply tax if applicable
     if instance.is_taxable:
         instance.total_taxable_amount = instance.bill_amount
-        instance.total_tax_amount = instance.bill_amount * Decimal('0.13')
+        instance.total_tax_amount = instance.bill_amount * Decimal('0.13') # Assuming 13% tax rate
         instance.bill_amount += instance.total_tax_amount
     else:
         instance.total_taxable_amount = Decimal('0.00')
         instance.total_tax_amount = Decimal('0.00')
 
-    # # update paid amount here
-    for payment in instance.payments.filter(is_refunded=False):
-        instance.paid_amount += payment.amount
-    instance.is_paid = instance.bill_amount <= instance.paid_amount
+    # Aggregate payments
+    payment_aggregates = instance.payments.filter(is_refunded=False).aggregate(
+        total_paid=Sum('amount')
+    )
+    instance.paid_amount = payment_aggregates['total_paid'] or Decimal('0.00')
+
+    # Update paid status
+    instance.is_paid = instance.bill_amount <= instance.paid_amount and instance.bill_amount > 0
     # Trigger rollback if status is CANCELLED
     invoice_pure_save(instance)
 

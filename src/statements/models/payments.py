@@ -67,12 +67,12 @@ class Payment(DefaultModel):
                 'url': f'/statements/invoices/{self.invoice.id}',
                 'id': self.invoice.id
             }
-        elif self.purchase_order:
+        elif self.purchase_bill:
             return {
-                'number': self.purchase_order.third_party_invoice_number,
-                'type': 'Purchase Order',
-                'url': f'/statements/purchase-orders/{self.purchase_order.id}',
-                'id': self.purchase_order.id
+                'number': self.purchase_bill.purchase_bill_number, # Corrected field
+                'type': 'Purchase Bill', # Corrected type
+                'url': f'/statements/purchase-bills/{self.purchase_bill.id}', # Corrected URL part
+                'id': self.purchase_bill.id
             }
         elif self.expense:
             return {
@@ -87,8 +87,8 @@ class Payment(DefaultModel):
 
 @receiver(models.signals.post_save, sender=Payment)
 def post_save_handler_payment(sender, instance, created, **kwargs):
-    if instance.purchase_order:
-        instance.purchase_order.save()
+    if instance.purchase_bill: # Corrected from purchase_order
+        instance.purchase_bill.save()
     if instance.invoice:
         instance.invoice.save()
     if instance.expense:

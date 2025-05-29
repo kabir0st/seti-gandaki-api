@@ -125,17 +125,25 @@ def post_save_handler_purchase_bill(sender, instance, created, **kwargs):
     """
     # This assumes a related field 'payments' exists on PurchaseBill model
     # similar to the Invoice model. If not, this logic needs adjustment.
-    current_paid_amount = Decimal("0.00")
-    if hasattr(instance, 'payments'): # Check if payments related manager exists
-        for payment in instance.payments.filter(is_refunded=False):
-            current_paid_amount += payment.amount
     
+    # Calculate current paid amount using aggregation
+    # Ensure 'payments' is the correct related_name for payments to this PurchaseBill
+    if hasattr(instance, 'payments'): # Check if payments related manager exists
+        paid_aggregation = instance.payments.filter(is_refunded=False).aggregate(total_paid=models.Sum('amount'))
+        current_paid_amount = paid_aggregation['total_paid'] or Decimal("0.00")
+    else:
+        # Fallback or error handling if 'payments' related manager doesn't exist as expected
+        # For now, assume it might not have payments or the relation is named differently.
+        # This part might need adjustment based on actual model structure for payments to PurchaseBill.
+        current_paid_amount = Decimal("0.00") # Default if no payments or relation issue
+
     needs_save = False
     if instance.paid_amount != current_paid_amount:
         instance.paid_amount = current_paid_amount
         needs_save = True
 
-    new_is_paid_status = instance.bill_amount <= instance.paid_amount
+    # Ensure bill_amount is positive for is_paid to be true, otherwise it's not a valid paid state.
+    new_is_paid_status = instance.bill_amount > 0 and instance.bill_amount <= instance.paid_amount
     if instance.is_paid != new_is_paid_status:
         instance.is_paid = new_is_paid_status
         needs_save = True

@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.db import models
+from django.db.models import Sum # Import Sum
 from core.utils.functions import to_decimal
 from django.db.models import signals
 from django.db.models.signals import post_save, pre_save, post_delete
@@ -97,26 +98,39 @@ class ExpenseItem(DefaultModel):
 
 @receiver(post_save, sender=ExpenseItem)
 def expense_item_post_save_handler(sender, created, instance, **kwargs):
-    # Update the total_amount of the parent Expense
+    # Update the total_amount of the parent Expense using aggregation
     expense = instance.expense
-    expense.total_amount = sum(item.total_price for item in expense.expense_items.all())
-    # Disconnect the signal to prevent recursion when saving the expense
+    aggregation = expense.expense_items.aggregate(total=Sum('total_price'))
+    expense.total_amount = aggregation['total'] or Decimal('0.00')
+    
+    # Disconnect this signal to prevent recursion if expense.save() triggers it.
+    # The Expense model's own post_save (post_save_handler_expense) will handle
+    # paid_amount and is_paid updates.
     signals.post_save.disconnect(expense_item_post_save_handler, sender=ExpenseItem)
-    expense.save()
+    expense.save(update_fields=['total_amount']) # Only update total_amount here
     # Reconnect the signal
     signals.post_save.connect(expense_item_post_save_handler, sender=ExpenseItem)
 
 
 @receiver(post_delete, sender=ExpenseItem)
 def expense_item_post_delete_handler(sender, instance, **kwargs):
-    # Update the total_amount of the parent Expense after an item is deleted
+    # Update the total_amount of the parent Expense after an item is deleted using aggregation
     expense = instance.expense
-    expense.total_amount = sum(item.total_price for item in expense.expense_items.all())
-    # Disconnect the signal to prevent recursion when saving the expense
-    signals.post_save.disconnect(expense_item_post_save_handler, sender=ExpenseItem)
-    expense.save()
-    # Reconnect the signal
-    signals.post_save.connect(expense_item_post_save_handler, sender=ExpenseItem)
+    # Ensure expense instance is up-to-date if other operations might have changed it
+    # expense.refresh_from_db() # Consider if necessary based on broader application logic
+    
+    aggregation = expense.expense_items.aggregate(total=Sum('total_price'))
+    new_total_amount = aggregation['total'] or Decimal('0.00')
+
+    if expense.total_amount != new_total_amount:
+        expense.total_amount = new_total_amount
+        # Disconnect the ExpenseItem post_save signal temporarily if it's the same handler,
+        # though for post_delete, this specific handler (expense_item_post_save_handler) isn't the one being disconnected.
+        # The main concern is if expense.save() would somehow re-trigger operations on ExpenseItem.
+        # For clarity, ensure we are only disconnecting the relevant signal if there's a risk of loop.
+        # Here, we are in post_delete of ExpenseItem, saving Expense.
+        # The Expense's own post_save (post_save_handler_expense) will run.
+        expense.save(update_fields=['total_amount'])
 
 
 @receiver(post_save, sender=Expense)
@@ -125,17 +139,18 @@ def post_save_handler_expense(sender, instance, created, **kwargs):
     Updates the paid_amount and is_paid status of an Expense
     after payments are made or total_amount changes.
     """
-    current_paid_amount = Decimal("0.00")
-    # The Payment model has a related_name="payments" to Expense
-    for payment in instance.payments.filter(is_refunded=False):
-        current_paid_amount += payment.amount
+    # Calculate current paid amount using aggregation
+    # Assumes 'payments' is the correct related_name from Payment model to Expense
+    paid_aggregation = instance.payments.filter(is_refunded=False).aggregate(total_paid=Sum('amount'))
+    current_paid_amount = paid_aggregation['total_paid'] or Decimal("0.00")
 
     needs_save = False
     if instance.paid_amount != current_paid_amount:
         instance.paid_amount = current_paid_amount
         needs_save = True
-
-    new_is_paid_status = instance.total_amount <= instance.paid_amount
+    
+    # Expense is paid if total_amount > 0 and total_amount <= paid_amount
+    new_is_paid_status = instance.total_amount > 0 and instance.total_amount <= instance.paid_amount
     if instance.is_paid != new_is_paid_status:
         instance.is_paid = new_is_paid_status
         needs_save = True
