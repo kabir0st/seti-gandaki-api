@@ -20,7 +20,7 @@ class Attendance(DefaultModel): # Changed TimeStampedModel to DefaultModel
         related_name="attendances",
         verbose_name=_("Staff")
     )
-    date = models.DateField(_("Date"), default=timezone.now)
+    date = models.DateField(_("Date"), default=timezone.localdate)
     check_in_time = models.TimeField(_("Check-in Time"), null=True, blank=True)
     check_out_time = models.TimeField(_("Check-out Time"), null=True, blank=True)
     status = models.CharField(

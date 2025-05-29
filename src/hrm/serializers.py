@@ -1,4 +1,5 @@
-from django.core.validators import RegexValidator
+from decimal import Decimal
+from django.core.validators import RegexValidator, MinValueValidator
 from rest_framework import serializers
 from hrm.models.fuel import FuelTicket, PetrolStation
 from hrm.models.attendance import Attendance, AttendanceChoice
@@ -61,7 +62,7 @@ class FuelTicketConsumeSerializer(serializers.Serializer):
     bill_amount = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
-        validators=[serializers.MinValueValidator(Decimal('0.01'))],
+        validators=[MinValueValidator(Decimal('0.01'))],
         required=True
     )
 
