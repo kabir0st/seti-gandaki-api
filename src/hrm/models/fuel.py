@@ -1,9 +1,11 @@
+from decimal import Decimal
 import uuid
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator,  RegexValidator
 
 from core.utils.models.abstract import DefaultModel
+from statements.models.purchase_invoice import Vehicle
 
 
 class PetrolStation(DefaultModel):
@@ -11,13 +13,44 @@ class PetrolStation(DefaultModel):
     station_code = models.CharField(
         max_length=4,
         unique=True,
-        validators=[RegexValidator(r'^\d{4}$', 'Station code must be 4 digits.')]
+        validators=[RegexValidator(r'^\d{4}$', 'Station code must be 4 digits.')],
+        editable=False,  # Makes it read-only in admin/forms
+        blank=True       # Allows it to be blank before save() populates it
     )
     location_details = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.name} ({self.station_code})"
+
+    def save(self, *args, **kwargs):
+        if not self.pk and not self.station_code:  # Only on creation and if station_code isn't pre-set
+            # Find the highest current station_code that is purely numeric
+            # The regex filter ensures we only consider valid format codes for max calculation
+            current_max_code_obj = PetrolStation.objects.filter(station_code__regex=r'^\d{4}$') \
+                                                    .aggregate(max_code=models.Max('station_code'))
+            
+            max_code_str = current_max_code_obj.get('max_code')
+            
+            next_code_int = 1
+            if max_code_str:
+                next_code_int = int(max_code_str) + 1
+            
+            # Loop to find the next available unique code, starting from next_code_int
+            while True:
+                if next_code_int > 9999: # All 4-digit codes checked
+                    # This situation means all 0001-9999 codes are taken.
+                    raise ValueError("Exhausted all possible 4-digit station codes. Cannot assign a new one.")
+                
+                prospective_code = f"{next_code_int:04d}"
+                
+                if not PetrolStation.objects.filter(station_code=prospective_code).exists():
+                    self.station_code = prospective_code
+                    break  # Found a unique code
+                
+                next_code_int += 1 # Try the next integer
+        
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "Petrol Station"
@@ -33,7 +66,7 @@ class FuelTicket(DefaultModel):
     ticket_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
     dispatched_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT, # Or models.SET_NULL, null=True if dispatcher can be deleted
+        on_delete=models.PROTECT,
         related_name="fuel_tickets_dispatched"
     )
     fuel_type = models.CharField(max_length=10, choices=FuelType.choices)
@@ -42,21 +75,25 @@ class FuelTicket(DefaultModel):
         decimal_places=2,
         validators=[MinValueValidator(0.01)]
     )
-    
+    bill_amount = models.DecimalField(max_digits=10,
+                                    decimal_places=2,
+                                    default=Decimal("0.00"))
+
     # For vehicles not in the system or quick entry
     vehicle_registration_number = models.CharField(max_length=20, blank=True, null=True)
     # Link to an existing vehicle model if available and applicable
-    # vehicle = models.ForeignKey(
-    #     'statements.Vehicle', # Use string reference to avoid circular imports if Vehicle model is in another app
-    #     on_delete=models.SET_NULL,
-    #     null=True, blank=True,
-    #     related_name="fuel_tickets"
-    # )
+    vehicle = models.ForeignKey(
+        Vehicle,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="fuel_tickets"
+    )
     
     remarks = models.TextField(blank=True, null=True)
     
     is_consumed = models.BooleanField(default=False, db_index=True)
     consumed_at = models.DateTimeField(null=True, blank=True)
+
     consumed_by_station = models.ForeignKey(
         PetrolStation,
         on_delete=models.SET_NULL, # Or models.PROTECT if station deletion should prevent ticket consumption update

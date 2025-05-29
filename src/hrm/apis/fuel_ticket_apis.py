@@ -147,13 +147,11 @@ class FuelTicketViewSet(DefaultViewSet):
             permission_classes=[permissions.AllowAny]) 
     def consume(self, request, pk=None):
         ticket = get_object_or_404(FuelTicket, ticket_id=pk) 
-        
         if ticket.is_consumed:
             return Response(
                 {"error": f"Ticket already consumed at {ticket.consumed_by_station.name} on {ticket.consumed_at.strftime('%Y-%m-%d %H:%M')}."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
         serializer = self.get_serializer(data=request.data, context={'ticket': ticket})
         if serializer.is_valid():
             serializer.save() 
@@ -166,6 +164,7 @@ class FuelTicketViewSet(DefaultViewSet):
         ticket = get_object_or_404(FuelTicket, ticket_id=pk)
         serializer = self.get_serializer(ticket)
         return Response(serializer.data)
+
 class FuelingStatsAPIView(views.APIView):
     permission_classes = [permissions.IsAdminUser] # Or a more specific permission
 

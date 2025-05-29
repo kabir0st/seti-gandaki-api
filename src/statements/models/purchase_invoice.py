@@ -155,6 +155,41 @@ def prevent_delete_if_not_draft(sender, instance, **kwargs):
             "Only draft bills can be deleted.")
 
 
+# New pre_save signal for PurchaseBill
+@receiver(pre_save, sender=PurchaseBill)
+def recalculate_bill_amount_on_purchase_bill_change(sender, instance, **kwargs):
+    """
+    Recalculates PurchaseBill.bill_amount before saving if fields like
+    grace_discount, shipping_and_handling_costs, or additional_costs change,
+    or on initial save.
+    This ensures bill_amount is correct based on its own cost components and item totals.
+    It does NOT modify PurchaseBill.sub_total, which is purely derived from items.
+    """
+    current_items_bill_total = Decimal("0.00")
+    if instance.pk: # If the instance is already in the DB
+        # Sum bill_amount from its associated items
+        # Ensure to use instance.pk for filtering if instance is not fully saved yet but has pk
+        items_qs = PurchaseItem.objects.filter(purchase_bill_id=instance.pk)
+        aggregation_result = items_qs.aggregate(total_item_bill=models.Sum('bill_amount'))
+        current_items_bill_total = aggregation_result['total_item_bill'] or Decimal('0.00')
+    # If not instance.pk (new instance), current_items_bill_total remains 0.00.
+    # This is correct as items wouldn't be linked yet through the database.
+    # The PurchaseItem post_save signals will later call update_purchase_bill_totals
+    # which will correctly sum items once they are saved and linked.
+
+    # Calculate new bill_amount based on item totals and the bill's own cost factors
+    new_bill_amount_val = (
+        current_items_bill_total -
+        to_decimal(instance.grace_discount) +  # These are current values on the instance
+        to_decimal(instance.shipping_and_handling_costs) +
+        to_decimal(instance.additional_costs)
+    )
+    
+    # Set the calculated bill_amount on the instance.
+    # The actual save operation will persist this.
+    instance.bill_amount = new_bill_amount_val.quantize(
+        Decimal('0.01'), rounding=ROUND_HALF_UP
+    )
 class PurchaseItem(models.Model):
     purchase_bill = models.ForeignKey(PurchaseBill,
                                       related_name='purchase_items',
@@ -241,35 +276,48 @@ def update_purchase_bill_totals(purchase_bill_instance):
     """
     # Ensure we are working with a saved instance, or at least one with a PK
     if not purchase_bill_instance.pk:
-        return  # Cannot update totals for an unsaved bill
+        # Cannot update totals for an unsaved bill if items are not yet linked.
+        # Or, if it's a new bill, these will be calculated/re-calculated
+        # when items are added and PurchaseItem signals fire.
+        return
 
     items = purchase_bill_instance.purchase_items.all()
 
-    current_bill_sub_total = items.aggregate(
+    # Calculate new sub_total from items
+    calculated_sub_total_from_items = items.aggregate(
         total=models.Sum('sub_total'))['total'] or Decimal('0.00')
-
-    current_items_bill_total = items.aggregate(
-        total=models.Sum('bill_amount'))['total'] or Decimal('0.00')
-
-    purchase_bill_instance.sub_total = current_bill_sub_total.quantize(
+    new_sub_total = calculated_sub_total_from_items.quantize(
         Decimal('0.01'), rounding=ROUND_HALF_UP)
 
-    # Calculate final bill amount for the PurchaseBill
-    # Bill amount = (sum of all item bill_amounts) -
-    #  grace_discount + shipping + additional_costs
-    total_bill_amount = (
+    # Calculate new bill_amount from items and bill's own costs/discounts
+    current_items_bill_total = items.aggregate(
+        total=models.Sum('bill_amount'))['total'] or Decimal('0.00')
+    
+    calculated_bill_amount_val = (
         current_items_bill_total -
         to_decimal(purchase_bill_instance.grace_discount) +
         to_decimal(purchase_bill_instance.shipping_and_handling_costs) +
-        to_decimal(purchase_bill_instance.additional_costs))
-    purchase_bill_instance.bill_amount = total_bill_amount.quantize(
+        to_decimal(purchase_bill_instance.additional_costs)
+    )
+    new_bill_amount = calculated_bill_amount_val.quantize(
         Decimal('0.01'), rounding=ROUND_HALF_UP)
 
-    # Use update_fields to prevent recursion if PurchaseBill
-    # has its own signals and to be more efficient.
-    PurchaseBill.objects.filter(pk=purchase_bill_instance.pk).update(
-        sub_total=purchase_bill_instance.sub_total,
-        bill_amount=purchase_bill_instance.bill_amount)
+    update_fields_list = []
+    # Check if calculated values differ from current values on the instance
+    if purchase_bill_instance.sub_total != new_sub_total:
+        purchase_bill_instance.sub_total = new_sub_total
+        update_fields_list.append('sub_total')
+
+    if purchase_bill_instance.bill_amount != new_bill_amount:
+        purchase_bill_instance.bill_amount = new_bill_amount
+        update_fields_list.append('bill_amount')
+
+    if update_fields_list:
+        # This save will trigger PurchaseBill's pre_save and post_save signals.
+        # - The new pre_save (recalculate_bill_amount_on_purchase_bill_change) will run.
+        #   It will recalculate bill_amount. Since the logic is the same, it's fine.
+        # - The existing post_save (post_save_handler_purchase_bill) will run to update is_paid.
+        purchase_bill_instance.save(update_fields=update_fields_list)
 
 
 @receiver(post_save, sender=PurchaseItem)

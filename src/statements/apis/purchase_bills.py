@@ -52,7 +52,7 @@ class PurchaseItemViewSet(DefaultViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        purchase_bill_id = self.kwargs.get('purchase_bill_id')
+        purchase_bill_id = self.kwargs.get('purchase_bill_pk')
         if purchase_bill_id:
             queryset = queryset.filter(purchase_bill__id=purchase_bill_id)
             return queryset

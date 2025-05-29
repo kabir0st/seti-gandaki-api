@@ -164,7 +164,6 @@ def pre_save_handler_invoice(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Invoice)
 def post_save_handler_invoice(sender, instance, *args, **kwargs):
-    print('  aayo ta invoice ? ', instance.trigger_value)
     if not instance.invoice_number and instance.status in [
             InvoiceStatus.APPROVED, InvoiceStatus.SHIPPED,
             InvoiceStatus.COMPLETED

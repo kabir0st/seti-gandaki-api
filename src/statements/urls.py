@@ -25,13 +25,13 @@ router.register('purchase-bills', PurchaseBillViewSet, basename='PurchaseBill')
 router.register('invoices', InvoiceViewSet, basename='Invoice')
 
 router.register('expenses', ExpenseViewSet, basename='Expense')
-router.register('payments', PaymentViewSet, basename='Payment') # Registered PaymentViewSet
+router.register('payments', PaymentViewSet, basename='Payment')
 
 purchase_bills_router = NestedSimpleRouter(router,
                                            'purchase-bills',
                                            lookup='purchase_bill')
 
-purchase_bills_router.register('purchase-items',
+purchase_bills_router.register('items',
                                PurchaseItemViewSet,
                                basename='purchase-bill-items')
 

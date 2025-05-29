@@ -19,7 +19,7 @@ class InvoiceItemViewSet(DefaultViewSet):
     search_fields = [ 'item_name']
 
     def get_queryset(self):
-        invoice_id = self.kwargs.get('invoice_id')
+        invoice_id = self.kwargs.get('invoice_pk')
         if invoice_id:
             return InvoiceItem.objects.filter(invoice_id=invoice_id)
         # If no invoice_id is provided, raise an error
