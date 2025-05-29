@@ -382,3 +382,19 @@ def optimize_thumbnail(instance):
                                                   save=False)
                 os.remove(optimized_image_path)
                 return instance
+def generate_unique_code(model_class, field_name, length=8):
+    """
+    Generates a unique random code for a given model field.
+
+    Args:
+        model_class: The Django model class.
+        field_name: The name of the field to check for uniqueness.
+        length: The desired length of the code (default is 8).
+
+    Returns:
+        A unique random code (string).
+    """
+    while True:
+        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+        if not model_class.objects.filter(**{field_name: code}).exists():
+            return code

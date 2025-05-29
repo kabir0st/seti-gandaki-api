@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.validators import MinValueValidator,  RegexValidator
 
 from core.utils.models.abstract import DefaultModel
+from core.utils.functions import generate_unique_code # Added import
 from statements.models.purchase_invoice import Vehicle
 
 
@@ -24,31 +25,8 @@ class PetrolStation(DefaultModel):
         return f"{self.name} ({self.station_code})"
 
     def save(self, *args, **kwargs):
-        if not self.pk and not self.station_code:  # Only on creation and if station_code isn't pre-set
-            # Find the highest current station_code that is purely numeric
-            # The regex filter ensures we only consider valid format codes for max calculation
-            current_max_code_obj = PetrolStation.objects.filter(station_code__regex=r'^\d{4}$') \
-                                                    .aggregate(max_code=models.Max('station_code'))
-            
-            max_code_str = current_max_code_obj.get('max_code')
-            
-            next_code_int = 1
-            if max_code_str:
-                next_code_int = int(max_code_str) + 1
-            
-            # Loop to find the next available unique code, starting from next_code_int
-            while True:
-                if next_code_int > 9999: # All 4-digit codes checked
-                    # This situation means all 0001-9999 codes are taken.
-                    raise ValueError("Exhausted all possible 4-digit station codes. Cannot assign a new one.")
-                
-                prospective_code = f"{next_code_int:04d}"
-                
-                if not PetrolStation.objects.filter(station_code=prospective_code).exists():
-                    self.station_code = prospective_code
-                    break  # Found a unique code
-                
-                next_code_int += 1 # Try the next integer
+        if not self.station_code:  # If station_code is not provided
+            self.station_code = generate_unique_code(PetrolStation, 'station_code', length=4)
         
         super().save(*args, **kwargs)
 
