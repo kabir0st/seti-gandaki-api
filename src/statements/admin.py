@@ -6,6 +6,7 @@ from .models.logistics import GatePass, GatePassMovement, TripLog, Vehicle
 from .models.purchase_invoice import PurchaseBill, PurchaseItem
 from .models.invoice.invoice import Invoice
 from .models.invoice.invoice_item import InvoiceItem
+from .models.payments import Payment
 from .models.expense import ExpenseCategory, Expense, ExpenseItem
 from .models.settings import StatementSettings
 from .models.support import Staff
@@ -234,3 +235,34 @@ class StaffAdmin(ModelAdmin):
     ordering = ('name', )
 
     # driver_display method removed as driver fields are no longer on TripLog
+
+@admin.register(Payment)
+class PaymentAdmin(ModelAdmin):
+    list_display = (
+        'id',
+        'created_by',
+        'header',
+        'payment_for_display',
+        'amount',
+        'is_refunded',
+        'created_at',
+    )
+    list_filter = ('header', 'is_refunded', 'created_at', 'invoice', 'purchase_bill', 'expense')
+    search_fields = (
+        'id',
+        'created_by__username', # Assuming UserBase has a username field
+        'invoice__invoice_number',
+        'purchase_bill__purchase_bill_number',
+        'expense__bill_number', # Assuming Expense has a bill_number
+        'remarks',
+    )
+    autocomplete_fields = ['created_by', 'invoice', 'purchase_bill', 'expense']
+    readonly_fields = ('payment_for_display',)
+
+    def payment_for_display(self, obj):
+        payment_for_info = obj.payment_for
+        if isinstance(payment_for_info, dict):
+            return f"{payment_for_info.get('type', 'N/A')}: {payment_for_info.get('number', 'N/A')}"
+        return payment_for_info # Should be 'Manual' or similar
+
+    payment_for_display.short_description = 'Payment For'
