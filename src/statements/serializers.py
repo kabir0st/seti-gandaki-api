@@ -81,7 +81,7 @@ class TripLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = TripLog
         fields = [
-            'id', 'gate_pass', 'gate_pass_details', 'for_purchase_bill',
+            'id', 'gate_pass', 'gate_pass_details', 'for_purchase_bill', 'for_invoice',
             'purpose', 'notes', 'created_at', 'updated_at'
         ]
         extra_kwargs = {

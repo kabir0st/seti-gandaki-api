@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from statements.models.invoice.invoice import Invoice
 from statements.models.purchase_invoice import PurchaseBill, Vehicle
 
 
@@ -91,6 +92,10 @@ class TripLog(models.Model):
                                   related_name='trip_logs',
                                   verbose_name=_("Vehicle"))
     for_purchase_bill = models.ForeignKey(PurchaseBill,
+                                          on_delete=models.CASCADE,
+                                          null=True,
+                                          blank=True)
+    for_invoice = models.ForeignKey(Invoice,
                                           on_delete=models.CASCADE,
                                           null=True,
                                           blank=True)
