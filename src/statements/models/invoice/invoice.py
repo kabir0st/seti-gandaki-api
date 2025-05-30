@@ -180,12 +180,18 @@ def post_save_handler_invoice(sender, instance, *args, **kwargs):
     instance.paid_amount = Decimal('0.00')
 
     # Aggregate invoice items
+    # Calculate sub_total_amount from database
     item_aggregates = instance.invoice_items.aggregate(
-        total_item_discount=Sum('discount_amount'),
         total_item_sub_total=Sum('sub_total_amount')
     )
     instance.sub_total_amount = item_aggregates['total_item_sub_total'] or Decimal('0.00')
-    instance.total_discount_amount = item_aggregates['total_item_discount'] or Decimal('0.00')
+
+    # Calculate total_discount_amount by iterating through items in Python,
+    # as discount_amount is a property
+    current_total_item_discount = Decimal('0.00')
+    for item in instance.invoice_items.all(): # Ensure items are loaded
+        current_total_item_discount += item.discount_amount # Access the property
+    instance.total_discount_amount = current_total_item_discount
 
     # Add additional discount
     instance.total_discount_amount += to_decimal(
