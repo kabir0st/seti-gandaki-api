@@ -7,8 +7,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
 from statements.models.expense import Expense
-from statements.models.purchase_invoice import PurchaseInvoice
-from statements.models.invoice.models import Invoice
+from statements.models.purchase_invoice import PurchaseBill
+from statements.models.invoice import Invoice
 
 class StatementStatisticsView(APIView):
     permission_classes = [IsAuthenticated]
@@ -84,7 +84,7 @@ class StatementStatisticsView(APIView):
         }
 
     def _get_purchase_statistics(self, start_date, end_date):
-        purchases = PurchaseInvoice.objects.filter(
+        purchases = PurchaseBill.objects.filter(
             created_at__range=(start_date, end_date)
         )
         
