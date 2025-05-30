@@ -3,7 +3,7 @@ from .models.purchase_invoice import PurchaseBill, PurchaseItem
 from .models.business import Business
 from .models.logistics import Vehicle, GatePass, GatePassMovement, TripLog
 from .models.support import Staff
-from .models.invoice.invoice import Invoice
+from .models.invoice.invoice import Invoice, InvoiceStatus
 from .models.invoice.invoice_item import InvoiceItem
 from .models.settings import StatementSettings
 from .models.expense import ExpenseCategory, Expense, ExpenseItem
@@ -269,7 +269,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         # Prevent changing is_taxable if invoice is not in draft and has an invoice number
-        if instance.status != Invoice.InvoiceStatus.DRAFT and instance.invoice_number:
+        if instance.status != InvoiceStatus.DRAFT and instance.invoice_number:
             if 'is_taxable' in validated_data and validated_data['is_taxable'] != instance.is_taxable:
                 raise serializers.ValidationError("Cannot change 'is_taxable' once invoice is approved and has an invoice number.")
 
@@ -490,7 +490,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
         return invoice
 
     def update(self, instance, validated_data):
-        if instance.status != Invoice.InvoiceStatus.DRAFT and instance.invoice_number:
+        if instance.status != InvoiceStatus.DRAFT and instance.invoice_number:
             if 'is_taxable' in validated_data and validated_data['is_taxable'] != instance.is_taxable:
                 raise serializers.ValidationError("Cannot change 'is_taxable' once invoice is approved and has an invoice number.")
 

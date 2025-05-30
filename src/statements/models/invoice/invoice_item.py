@@ -44,16 +44,13 @@ class InvoiceItem(DefaultModel):
 
     is_marked_as_complete = models.BooleanField(default=False)
     ALLOW_UPDATE = [
-        'is_marked_as_complete', 'profit_flow', 'trigger_value',
-        'trigger_value_invoice'
+        'is_marked_as_complete',
     ]
 
     def __str__(self):
         return f'{self.item_name} - {self.invoice}'
 
     def save(self, *args, **kwargs):
-        self.trigger_value = None
-        self.trigger_value_invoice = None
         super(InvoiceItem, self).save(*args, **kwargs)
 
     @property
@@ -80,8 +77,7 @@ def invoice_item_post_save_handler(sender, created, instance, **kwargs):
     
     instance.save()
     # to recalculate if only invoice item's billing is changed
-    if instance.trigger_value_invoice:
-        instance.invoice.save()
+    instance.invoice.save()
     signals.post_save.connect(invoice_item_post_save_handler,
                               sender=InvoiceItem)
 
