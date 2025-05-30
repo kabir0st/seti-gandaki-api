@@ -1,10 +1,12 @@
 from django.conf import settings as django_setting
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path,re_path
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions
+
+from core.views import index
 
 # from .logics.index import dashboard, login_view
 
@@ -34,3 +36,6 @@ urlpatterns += static(django_setting.MEDIA_URL,
                       document_root=django_setting.MEDIA_ROOT)
 urlpatterns += static(django_setting.STATIC_URL,
                       document_root=django_setting.STATIC_ROOT)
+
+
+urlpatterns.append(re_path(r'^(?:.*)/?$', index))

@@ -2,10 +2,15 @@ import os
 from typing import List, Tuple
 
 from core.settings.environments import (BASE_DIR, BUCKET_ACCESS_KEY,
-                                        BUCKET_ENDPOINT, BUCKET_SECRET_KEY)
+                                        BUCKET_ENDPOINT, BUCKET_SECRET_KEY,
+                                        USE_BUCKET)
 
-if os.environ.get("GITHUB_WORKFLOW"):
-    # Use normal storage for GitHub test cases
+# Determine if bucket storage should be used
+# Defaults to False if USE_BUCKET is not set or not 'true'
+should_use_bucket = str(USE_BUCKET).lower() == 'true'
+
+if os.environ.get("GITHUB_WORKFLOW") or not should_use_bucket:
+    # Use normal storage for GitHub test cases or if USE_BUCKET is false
     STORAGES = {
         'default': {
             'BACKEND': 'django.core.files.storage.FileSystemStorage',
@@ -20,7 +25,7 @@ if os.environ.get("GITHUB_WORKFLOW"):
     MEDIA_URL = '/media/'
     STATIC_URL = '/static/'
 else:
-    # Use Minio storage for other cases
+    # Use Minio storage if USE_BUCKET is true and not in a GitHub workflow
     STORAGES = {
         'default': {
             'BACKEND': 'django_minio_backend.models.MinioBackend',
