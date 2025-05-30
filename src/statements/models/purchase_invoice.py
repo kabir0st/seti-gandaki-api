@@ -49,7 +49,7 @@ class PurchaseBill(models.Model):
                                       on_delete=models.CASCADE,
                                       null=True,
                                       blank=True)
-
+    
     purchase_bill_number = models.CharField(max_length=255,
                                             blank=True,
                                             null=True)

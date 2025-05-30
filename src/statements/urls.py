@@ -12,6 +12,7 @@ from .apis.expense import ExpenseCategoryViewSet, ExpenseViewSet, ExpenseItemVie
 from .apis.expense_items import ExpensedItemStatViewSet # New import for expense stats
 from .apis.payment import PaymentViewSet # Added import
 from rest_framework_nested.routers import SimpleRouter, NestedSimpleRouter
+from statements.apis.statistics import StatementStatisticsView
 
 
 router = SimpleRouter()
@@ -55,4 +56,5 @@ expenses_router.register('items', ExpenseItemViewSet, basename='expense-items')
 urlpatterns += [
     path('', include(expenses_router.urls)),
     path('settings/', StatementSettingsAPIView.as_view(), name='statement-settings'),
+    path('statistics/', StatementStatisticsView.as_view(), name='statement-statistics'),
 ]
