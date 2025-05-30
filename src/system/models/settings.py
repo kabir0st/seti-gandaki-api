@@ -9,3 +9,5 @@ class GlobalSettings(SingletonModel):
     location = models.TextField(null=True, blank=True)
     business_name = models.CharField(max_length=255, default='Seti Gandaki')
     pan_number = models.CharField(max_length=255, default='')
+    shipping_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    multi_vendor_support = models.BooleanField(default=False)
