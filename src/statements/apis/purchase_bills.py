@@ -1,3 +1,5 @@
+from django.db.models import Avg, Sum, F, Subquery, OuterRef, Max, Window
+from django.db.models.functions import FirstValue
 from django_filters import rest_framework as django_filters
 from rest_framework.exceptions import ValidationError
 
@@ -5,7 +7,9 @@ from core.utils.viewsets import DefaultFilterSet, DefaultViewSet
 from ..models.purchase_invoice import PurchaseBill, PurchaseItem
 from ..serializers import (PurchaseBillSerializer,
                            PurchaseItemDetailSerializer,
-                           PurchaseItemListSerializer)
+                           PurchaseItemListSerializer,
+                           PurchasedItemStatSerializer,
+                           ItemNameSerializer)
 
 
 # Filters for PurchaseItem
@@ -107,4 +111,59 @@ class PurchaseBillViewSet(DefaultViewSet):
     def get_queryset(self):
         queryset = PurchaseBill.objects.prefetch_related(
             'purchase_items').select_related('from_business').all()
+        return queryset
+
+
+# Filters for PurchasedItemStat
+class PurchasedItemStatFilter(DefaultFilterSet):
+    item_name = django_filters.CharFilter(field_name='item', lookup_expr='icontains')
+    start_date = django_filters.DateFilter(field_name='purchase_bill__purchase_date', lookup_expr='gte')
+    end_date = django_filters.DateFilter(field_name='purchase_bill__purchase_date', lookup_expr='lte')
+
+    class Meta:
+        model = PurchaseItem
+        fields = ['item_name', 'start_date', 'end_date']
+
+
+# ViewSet for PurchasedItemStat
+class PurchasedItemStatViewSet(DefaultViewSet):
+    filterset_class = PurchasedItemStatFilter
+    ordering_fields = ['item_name', 'average_price', 'last_bought_price', 'total_item_bought']
+
+    # Set default page size
+    if DefaultViewSet.pagination_class:
+        DefaultViewSet.pagination_class.page_size = 20
+
+    def get_serializer_class(self):
+        if self.request.query_params.get('auto_fill', '').lower() == 'true':
+            return ItemNameSerializer
+        return PurchasedItemStatSerializer
+
+    def get_queryset(self):
+        queryset = PurchaseItem.objects.all() # Base queryset
+
+        # Apply filters from filterset_class. This is crucial.
+        # DefaultViewSet's list method usually handles this, but for custom get_queryset,
+        # ensure filters are applied if they are not already by the time this is called.
+        # If using self.filter_queryset(queryset) it should work.
+        # For clarity, let's assume filters are applied to `queryset` before this point
+        # or will be by `self.filter_queryset(queryset)` if called by `list()`.
+
+        if self.request.query_params.get('auto_fill', '').lower() == 'true':
+            # For auto_fill, we only need distinct item names
+            # Filters (item name search, date range) should still apply to this
+            queryset = queryset.values('item').annotate(item_name=F('item')).distinct().order_by('item_name')
+        else:
+            # Original aggregation logic
+            last_purchase_subquery = PurchaseItem.objects.filter(
+                item=OuterRef('item')
+            ).order_by('-purchase_bill__purchase_date', '-created_at').values('unit_price')[:1]
+
+            queryset = queryset.values('item').annotate(
+                item_name=F('item'),
+                average_price=Avg('unit_price'),
+                total_item_bought=Sum('quantity'),
+                last_bought_price=Subquery(last_purchase_subquery)
+            ).order_by('item_name')
+
         return queryset

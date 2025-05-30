@@ -584,3 +584,50 @@ class ExpenseSerializer(serializers.ModelSerializer):
                 ExpenseItem.objects.create(expense=instance, **item_data)
 
         return instance
+class PurchasedItemStatSerializer(serializers.Serializer):
+    item_name = serializers.CharField(read_only=True)
+    average_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    last_bought_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    total_item_bought = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        fields = [
+            'item_name',
+            'average_price',
+            'last_bought_price',
+            'total_item_bought',
+        ]
+
+class InvoicedItemStatSerializer(serializers.Serializer):
+    item_name = serializers.CharField(read_only=True)
+    average_price = serializers.DecimalField(max_digits=60, decimal_places=2, read_only=True)
+    last_sold_price = serializers.DecimalField(max_digits=60, decimal_places=2, read_only=True)
+    total_item_sold = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        fields = [
+            'item_name',
+            'average_price',
+            'last_sold_price',
+            'total_item_sold',
+        ]
+
+class ExpensedItemStatSerializer(serializers.Serializer):
+    item_name = serializers.CharField(read_only=True)
+    average_price = serializers.DecimalField(max_digits=60, decimal_places=2, read_only=True)
+    last_expensed_price = serializers.DecimalField(max_digits=60, decimal_places=2, read_only=True)
+    total_item_expensed_quantity = serializers.DecimalField(max_digits=60, decimal_places=2, read_only=True) # quantity is DecimalField in model
+
+    class Meta:
+        fields = [
+            'item_name',
+            'average_price',
+            'last_expensed_price',
+            'total_item_expensed_quantity',
+        ]
+
+class ItemNameSerializer(serializers.Serializer):
+    item_name = serializers.CharField(read_only=True)
+
+    class Meta:
+        fields = ['item_name']
