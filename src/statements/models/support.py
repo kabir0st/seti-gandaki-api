@@ -13,7 +13,7 @@ class Staff(models.Model):
                             max_length=255,
                             blank=True,
                             null=True)
-    phone_number = models.EmailField(_("Contact Number"),
+    phone_number = models.CharField(_("Contact Number"),
                                      max_length=255,
                                      blank=True,
                                      null=True)
@@ -27,6 +27,7 @@ class Staff(models.Model):
                            unique=True,
                            blank=True,
                            null=True)
+
     assigned_salary = models.DecimalField(max_digits=10,
                                           decimal_places=2,
                                           default=Decimal("0.00"))

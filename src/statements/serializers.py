@@ -24,7 +24,7 @@ class StaffSerializer(serializers.ModelSerializer):
         model = Staff
         fields = [
             'id', 'name', 'phone_number', 'verification_document', 'pan',
-            'assigned_salary', 'address', 'updated_at'
+            'assigned_salary', 'address', 'enrollment_date', 'updated_at'
         ]
         read_only_fields = ('updated_at', )
 
