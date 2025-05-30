@@ -58,7 +58,6 @@ def generate_invoice_number(invoice, is_taxable):
     serial = None
     Invoice = apps.get_model('statements.Invoice')
     latest = Invoice.objects.filter(
-        branch=invoice.branch,
         fiscal_year_bs=years['bs'],
         is_taxable=is_taxable).order_by('-serial').first()
     if latest:
@@ -66,7 +65,7 @@ def generate_invoice_number(invoice, is_taxable):
         serial = serial + 1
     else:
         serial = 1
-    invoice_number = invoice.branch.code + \
+    invoice_number = "INV" + \
         str(serial).zfill(6) + "-" + years['bs']
     if is_taxable:
         invoice_number = "TAX-" + invoice_number
