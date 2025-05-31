@@ -109,9 +109,11 @@ class PurchaseBill(models.Model):
     bill_completed_on = models.DateField(null=True, blank=True)
 
     assigned_vehicles = models.ManyToManyField(Vehicle,
-                                               related_name='purchase_bills')
+                                               related_name='purchase_bills',
+                                               blank=True)
     assigned_staffs = models.ManyToManyField(Staff,
-                                             related_name='purchase_bills')
+                                             related_name='purchase_bills',
+                                             blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

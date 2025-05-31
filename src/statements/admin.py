@@ -95,7 +95,12 @@ class ExpenseCategoryAdmin(ModelAdmin):
 class ExpenseItemInline(TabularInline):
     model = ExpenseItem
     extra = 1
-    autocomplete_fields = []
+    autocomplete_fields = ['attached_fuel_tickets']
+
+@admin.register(ExpenseItem)
+class ExpenseItemAdmin(ModelAdmin):
+    model = ExpenseItem
+    autocomplete_fields = ['attached_fuel_tickets','expense']
 
 
 @admin.register(Expense)

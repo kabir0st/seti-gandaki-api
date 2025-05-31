@@ -93,7 +93,7 @@ class ExpenseItem(DefaultModel):
     price_per_item = models.DecimalField(default=0.00, max_digits=60, decimal_places=2)
     total_price = models.DecimalField(default=0.00, max_digits=60, decimal_places=2)
     remarks = models.TextField(blank=True, null=True)
-
+    attached_fuel_tickets = models.ManyToManyField('hrm.FuelTicket',related_name='expense_item')
     def __str__(self):
         return f'{self.item_name} - {self.expense}'
 
@@ -112,6 +112,11 @@ def expense_item_post_save_handler(sender, created, instance, **kwargs):
     # Disconnect this signal to prevent recursion if expense.save() triggers it.
     # The Expense model's own post_save (post_save_handler_expense) will handle
     # paid_amount and is_paid updates.
+
+    if hasattr(instance, 'attached_fuel_tickets'):
+        # If attached_fuel_tickets is a ManyToManyField, ensure it's saved first
+        pass
+
     signals.post_save.disconnect(expense_item_post_save_handler, sender=ExpenseItem)
     expense.save(update_fields=['total_amount']) # Only update total_amount here
     # Reconnect the signal

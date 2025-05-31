@@ -181,6 +181,16 @@ class PurchaseBillSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseBill
         fields = '__all__'
+        extra_kwargs = {
+            'assigned_vehicles': {
+                'required': False,
+                'allow_null': True
+            },
+            'assigned_staffs': {
+                'required': False,
+                'allow_null': True
+            },
+        }
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
@@ -293,6 +303,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
                 ExpenseItem.objects.create(expense=instance, **item_data)
 
         return instance
+
 class PurchasedItemStatSerializer(serializers.Serializer):
     item_name = serializers.CharField(read_only=True)
     average_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
