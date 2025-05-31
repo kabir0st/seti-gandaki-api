@@ -1,3 +1,4 @@
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import  status, permissions,  views
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -16,10 +17,13 @@ from hrm.serializers import (
     FuelTicketConsumeSerializer,
     FuelTicketPublicDetailSerializer
 )
+from .filtersets.fuel_ticket import PetrolStationFilter, FuelTicketFilter # Added import
 
 class PetrolStationViewSet(DefaultViewSet):
     queryset = PetrolStation.objects.filter()
     serializer_class = PetrolStationSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = PetrolStationFilter
     # permission_classes = [permissions.IsAdminUser]
 
     @swagger_auto_schema(
@@ -129,9 +133,11 @@ class PetrolStationViewSet(DefaultViewSet):
         return Response(response_data)
 
 class FuelTicketViewSet(DefaultViewSet):
-    queryset = FuelTicket.objects.all() 
+    queryset = FuelTicket.objects.all()
     serializer_class = FuelTicketSerializer
-    permission_classes = [permissions.IsAuthenticated] 
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = FuelTicketFilter
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
