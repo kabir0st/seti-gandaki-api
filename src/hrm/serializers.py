@@ -58,8 +58,6 @@ class FuelTicketSerializer(serializers.ModelSerializer):
 
 class FuelTicketConsumeSerializer(serializers.Serializer):
     station_code = serializers.CharField(
-        max_length=4,
-        validators=[RegexValidator(r'^\d{4}$', 'Station code must be 4 digits.')],
         required=True
     )
     bill_amount = serializers.DecimalField(

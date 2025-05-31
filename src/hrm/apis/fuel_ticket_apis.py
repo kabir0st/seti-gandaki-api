@@ -1,3 +1,4 @@
+from decimal import Decimal
 import json # Added import
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import  status, permissions,  views
@@ -184,11 +185,16 @@ class FuelTicketViewSet(DefaultViewSet):
                 {"error": f"Ticket already consumed at {ticket.consumed_by_station.name} on {ticket.consumed_at.strftime('%Y-%m-%d %H:%M')}."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        serializer = self.get_serializer(data=request.data, context={'ticket': ticket})
+        data = {
+            'station_code': request.data.get('station_code'),
+            'bill_amount': Decimal(request.data['bill_amount'])
+        }
+        serializer = self.get_serializer(data=data, context={'ticket': ticket})
         if serializer.is_valid():
             serializer.save() 
             return Response(FuelTicketSerializer(ticket, context={'request': request}).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
     @action(detail=True, methods=['get'], serializer_class=FuelTicketPublicDetailSerializer,
             permission_classes=[permissions.AllowAny], url_path='verify') 
