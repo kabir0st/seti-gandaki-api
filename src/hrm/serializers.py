@@ -47,6 +47,7 @@ class FuelTicketSerializer(serializers.ModelSerializer):
         return f"/verify-fuel-ticket/{obj.ticket_id}/" 
 
     def create(self, validated_data):
+        validated_data['dispatched_by'] = self.context['request'].user
         return super().create(validated_data)
 
     def update(self, instance, validated_data):

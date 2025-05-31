@@ -134,7 +134,7 @@ class ExpenseItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExpenseItem
         fields = '__all__'
-        read_only_fields = ['total_price'] # total_price is calculated by model's save
+        read_only_fields = ['total_price', 'expense'] # total_price is calculated by model's save
 
     def _process_fuel_tickets(self, filters_data):
         if not filters_data or not isinstance(filters_data, dict):
