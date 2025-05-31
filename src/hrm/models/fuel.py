@@ -79,6 +79,7 @@ class FuelTicket(DefaultModel):
         related_name="consumed_fuel_tickets"
     )
     
+    
     # Extra fields for non-system vehicles/drivers if needed
     driver_name = models.CharField(max_length=100, blank=True, null=True)
     driver_phone = models.CharField(max_length=20, blank=True, null=True)

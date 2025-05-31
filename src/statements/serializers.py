@@ -1,4 +1,7 @@
 from rest_framework import serializers
+from decimal import Decimal
+from django.db.models import Q # Q can be useful for complex queries
+from hrm.models.fuel import FuelTicket
 from .models.purchase_invoice import PurchaseBill, PurchaseItem
 from .models.business import Business
 from .models.logistics import Vehicle, GatePass, GatePassMovement, TripLog
@@ -122,10 +125,143 @@ class ExpenseCategorySerializer(serializers.ModelSerializer):
 
 
 class ExpenseItemSerializer(serializers.ModelSerializer):
+    assigned_fuel_ticket_filters = serializers.JSONField(
+        write_only=True, required=False, allow_null=True
+    )
+    # attached_fuel_tickets will be handled by PrimaryKeyRelatedField by default
+    # It expects a list of PKs and resolves to instances in validated_data
+
     class Meta:
         model = ExpenseItem
         fields = '__all__'
-        read_only_fields = ['total_price']
+        read_only_fields = ['total_price'] # total_price is calculated by model's save
+
+    def _process_fuel_tickets(self, filters_data):
+        if not filters_data or not isinstance(filters_data, dict):
+            return [], Decimal('0.00')
+
+        has_valid_filters = False
+        fuel_ticket_qs = FuelTicket.objects.filter(is_consumed=True)
+        
+        if 'ids' in filters_data:
+            has_valid_filters = True
+            ids = filters_data['ids']
+            if not isinstance(ids, list):
+                raise serializers.ValidationError({"assigned_fuel_ticket_filters": "ids must be a list."})
+            fuel_ticket_qs = fuel_ticket_qs.filter(id__in=ids)
+        else:
+            station_id = filters_data.get('consumed_by_station')
+            if station_id is not None:
+                has_valid_filters = True
+                fuel_ticket_qs = fuel_ticket_qs.filter(consumed_by_station_id=station_id)
+            
+            date_range_str = filters_data.get('consumed_at__range')
+            if date_range_str:
+                has_valid_filters = True
+                if not (isinstance(date_range_str, list) and len(date_range_str) == 2):
+                    raise serializers.ValidationError({"assigned_fuel_ticket_filters": "consumed_at__range must be a list of two date/datetime strings."})
+                fuel_ticket_qs = fuel_ticket_qs.filter(consumed_at__range=date_range_str)
+            
+            # Add other potential filters here and set has_valid_filters = True
+
+        if not has_valid_filters:
+            return [], Decimal('0.00')
+
+        selected_tickets = list(fuel_ticket_qs)
+        # Ensure all selected tickets are indeed consumed (double check)
+        for ticket in selected_tickets:
+            if not ticket.is_consumed:
+                 # This case should ideally not be hit if the initial filter `is_consumed=True` is effective
+                raise serializers.ValidationError(
+                    f"Fuel ticket {ticket.ticket_id} was selected but is not marked as consumed. Please check data integrity or filter logic."
+                )
+        total_bill = sum(ticket.bill_amount for ticket in selected_tickets) if selected_tickets else Decimal('0.00')
+        
+        return selected_tickets, total_bill
+
+    def create(self, validated_data):
+        assigned_filters = validated_data.pop('assigned_fuel_ticket_filters', None)
+        # validated_data['attached_fuel_tickets'] will contain FuelTicket instances if provided
+        manually_attached_ticket_instances = validated_data.pop('attached_fuel_tickets', None)
+
+        final_tickets_to_attach_instances = []
+        
+        if assigned_filters:
+            selected_tickets, total_bill = self._process_fuel_tickets(assigned_filters)
+            validated_data['item_name'] = validated_data.get('item_name', "Fuel Expense (from filters)")
+            validated_data['quantity'] = Decimal('1.00')
+            validated_data['price_per_item'] = total_bill
+            final_tickets_to_attach_instances = selected_tickets
+        elif manually_attached_ticket_instances is not None:
+            valid_manual_tickets = []
+            for ticket_instance in manually_attached_ticket_instances:
+                if not ticket_instance.is_consumed:
+                    raise serializers.ValidationError(
+                        f"Manually attached fuel ticket {ticket_instance.ticket_id} is not consumed."
+                    )
+                valid_manual_tickets.append(ticket_instance)
+            
+            final_tickets_to_attach_instances = valid_manual_tickets
+            
+            if 'price_per_item' not in validated_data and 'quantity' not in validated_data:
+                 total_bill_manual = sum(t.bill_amount for t in valid_manual_tickets) if valid_manual_tickets else Decimal('0.00')
+                 validated_data['item_name'] = validated_data.get('item_name', "Fuel Expense (manual attach)")
+                 validated_data['quantity'] = Decimal('1.00')
+                 validated_data['price_per_item'] = total_bill_manual
+        
+        # Model's save method will calculate total_price based on quantity and price_per_item
+        expense_item = super().create(validated_data)
+
+        if final_tickets_to_attach_instances:
+            expense_item.attached_fuel_tickets.set(final_tickets_to_attach_instances)
+        
+        return expense_item
+
+    def update(self, instance, validated_data):
+        assigned_filters = validated_data.pop('assigned_fuel_ticket_filters', None)
+        manually_attached_ticket_instances = validated_data.pop('attached_fuel_tickets', None)
+
+        final_tickets_to_attach_instances = list(instance.attached_fuel_tickets.all())
+        should_update_attachments = False
+
+        if assigned_filters:
+            selected_tickets, total_bill = self._process_fuel_tickets(assigned_filters)
+            # Update instance fields that will be used by model's save()
+            instance.item_name = validated_data.get('item_name', instance.item_name)
+            instance.quantity = Decimal('1.00')
+            instance.price_per_item = total_bill
+            final_tickets_to_attach_instances = selected_tickets
+            should_update_attachments = True
+        elif manually_attached_ticket_instances is not None:
+            valid_manual_tickets = []
+            for ticket_instance in manually_attached_ticket_instances:
+                if not ticket_instance.is_consumed:
+                    raise serializers.ValidationError(
+                        f"Manually attached fuel ticket {ticket_instance.ticket_id} is not consumed."
+                    )
+                valid_manual_tickets.append(ticket_instance)
+            
+            final_tickets_to_attach_instances = valid_manual_tickets
+            should_update_attachments = True
+            
+            if 'price_per_item' not in validated_data and 'quantity' not in validated_data:
+                 total_bill_manual = sum(t.bill_amount for t in valid_manual_tickets) if valid_manual_tickets else Decimal('0.00')
+                 instance.item_name = validated_data.get('item_name', instance.item_name)
+                 instance.quantity = Decimal('1.00')
+                 instance.price_per_item = total_bill_manual
+        
+        # Apply other validated data to the instance fields
+        # Note: instance.quantity and instance.price_per_item might have been set above
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+        
+        # Save the instance. Model's save() will recalculate total_price.
+        instance.save()
+
+        if should_update_attachments:
+            instance.attached_fuel_tickets.set(final_tickets_to_attach_instances)
+        
+        return instance
 
 
 class PaymentSerializer(serializers.ModelSerializer):

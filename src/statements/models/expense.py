@@ -93,7 +93,7 @@ class ExpenseItem(DefaultModel):
     price_per_item = models.DecimalField(default=0.00, max_digits=60, decimal_places=2)
     total_price = models.DecimalField(default=0.00, max_digits=60, decimal_places=2)
     remarks = models.TextField(blank=True, null=True)
-    attached_fuel_tickets = models.ManyToManyField('hrm.FuelTicket',related_name='expense_item')
+    attached_fuel_tickets = models.ManyToManyField('hrm.FuelTicket',related_name='expense_item', blank=True)
     def __str__(self):
         return f'{self.item_name} - {self.expense}'
 
