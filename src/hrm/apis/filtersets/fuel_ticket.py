@@ -15,11 +15,6 @@ class PetrolStationFilter(django_filters.FilterSet):
 
 class FuelTicketFilter(django_filters.FilterSet):
     ticket_id = django_filters.UUIDFilter(field_name='ticket_id', lookup_expr='exact')
-    dispatched_by = django_filters.ModelChoiceFilter(
-        field_name='dispatched_by',
-        queryset=settings.AUTH_USER_MODEL.objects.all(), # This might need adjustment if AUTH_USER_MODEL is not directly queryable here
-        to_field_name='id' # Assuming filtering by user ID
-    )
     fuel_type = django_filters.ChoiceFilter(choices=FuelTicket.FuelType.choices)
     vehicle_registration_number = django_filters.CharFilter(lookup_expr='icontains')
     vehicle = django_filters.ModelChoiceFilter(
@@ -37,14 +32,4 @@ class FuelTicketFilter(django_filters.FilterSet):
 
     class Meta:
         model = FuelTicket
-        fields = [
-            'ticket_id',
-            'dispatched_by',
-            'fuel_type',
-            'vehicle_registration_number',
-            'vehicle',
-            'is_consumed',
-            'consumed_by_station',
-            'created_at',
-            'consumed_at',
-        ]
+        fields = "__all__"

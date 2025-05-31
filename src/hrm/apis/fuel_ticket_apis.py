@@ -1,3 +1,4 @@
+import json # Added import
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import  status, permissions,  views
 from rest_framework.decorators import action
@@ -144,6 +145,31 @@ class FuelTicketViewSet(DefaultViewSet):
         if user.is_staff: 
             return FuelTicket.objects.all().select_related('dispatched_by', 'consumed_by_station')
         return FuelTicket.objects.filter(dispatched_by=user).select_related('dispatched_by', 'consumed_by_station')
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        stats = queryset.aggregate(
+            total_bill_amount=Sum('bill_amount'),
+            total_quantity_liters=Sum('quantity_liters'),
+            consumed_tickets_count=Count('pk', filter=Q(is_consumed=True)),
+            unconsumed_tickets_count=Count('pk', filter=Q(is_consumed=False))
+        )
+
+        # Ensure None values from Sum are converted to 0
+        total_bill_amount = stats.get('total_bill_amount') or 0
+        total_quantity_liters = stats.get('total_quantity_liters') or 0
+
+        response_properties = {
+            "consumed_tickets_count": stats.get('consumed_tickets_count', 0),
+            "unconsumed_tickets_count": stats.get('unconsumed_tickets_count', 0),
+            "total_bill_amount": float(total_bill_amount), # Convert Decimal to float for JSON
+            "total_quantity_liters": float(total_quantity_liters) # Convert Decimal to float for JSON
+        }
+
+        response = super().list(request, *args, **kwargs)
+        response['response-properties'] = json.dumps(response_properties)
+        return response
 
     def perform_create(self, serializer):
         serializer.save()
