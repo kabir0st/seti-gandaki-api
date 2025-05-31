@@ -22,10 +22,7 @@ class StaffSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Staff
-        fields = [
-            'id', 'name', 'phone_number', 'verification_document', 'pan',
-            'assigned_salary', 'address', 'enrollment_date', 'updated_at'
-        ]
+        fields = '__all__'
         read_only_fields = ('updated_at', )
 
 
@@ -33,20 +30,14 @@ class VehicleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Vehicle
-        fields = [
-            'id', 'license_plate', 'primary_staffs', 'image', 'vehicle_type',
-            'note', 'is_active', 'created_at', 'updated_at'
-        ]
+        fields = '__all__'
 
 
 class GatePassMovementSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = GatePassMovement
-        fields = [
-            'id', 'gate_pass', 'exit_time', 'entry_time', 'created_at',
-            'updated_at'
-        ]
+        fields = '__all__'
         read_only_fields = ('created_at', 'updated_at')
 
 
@@ -58,11 +49,7 @@ class GatePassSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = GatePass
-        fields = [
-            'id', 'vehicle', 'vehicle_details', 'license_plate', 'purpose',
-            'driver_name', 'driver_phone', 'remarks', 'issued_by',
-            'created_at', 'updated_at', 'movements'
-        ]
+        fields = '__all__'
         extra_kwargs = {
             'vehicle': {
                 'allow_null': True,
@@ -80,10 +67,7 @@ class TripLogSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TripLog
-        fields = [
-            'id', 'gate_pass', 'gate_pass_details', 'for_purchase_bill', 'for_invoice',
-            'purpose', 'notes', 'created_at', 'updated_at'
-        ]
+        fields = '__all__'
         extra_kwargs = {
             'for_purchase_bill': {
                 'allow_null': True,
@@ -109,19 +93,7 @@ class PurchaseItemListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseItem
-        fields = (
-            'id',
-            'purchase_bill',
-            'item',
-            'item_description',
-            'quantity',
-            'unit_of_measurement',
-            'unit_price',
-            'discount_percentage',
-            'tax_percent_applied',
-            'bill_amount',
-            'created_at',
-        )
+        fields = '__all__'
 
 
 class PurchaseItemDetailSerializer(PurchaseItemBaseSerializer):
@@ -133,18 +105,7 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = InvoiceItem
-        fields = [
-            'id',
-            'item_name',
-            'quantity',
-            'unit',
-            'price_per_item',
-            'discount_percent',
-            'discount_remarks',
-            'discount_amount',
-            'sub_total_amount',
-            'bill_amount',
-        ]
+        fields = '__all__'
         read_only_fields = ['sub_total_amount', 'bill_amount', 'discount_amount']
 
 
@@ -163,13 +124,7 @@ class ExpenseCategorySerializer(serializers.ModelSerializer):
 class ExpenseItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = ExpenseItem
-        fields = [
-            'id',
-            'item_name',
-            'quantity',
-            'price_per_item',
-            'total_price',
-        ]
+        fields = '__all__'
         read_only_fields = ['total_price']
 
 
@@ -187,22 +142,7 @@ class PaymentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Payment
-        fields = [
-            'id',
-            'created_by',
-            'created_by_details',
-            'header',
-            'invoice', # FK ID
-            'purchase_bill', # FK ID
-            'expense', # FK ID
-            'amount',
-            'remarks',
-            'receipt',
-            'is_refunded',
-            'payment_for', # Property method
-            'created_at',
-            'updated_at',
-        ]
+        fields = '__all__'
         read_only_fields = ('created_at', 'updated_at', 'payment_for')
         extra_kwargs = {
             'invoice': {'allow_null': True, 'required': False},
@@ -240,32 +180,7 @@ class PurchaseBillSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PurchaseBill
-        fields = (
-            'id',
-            'purchase_date',
-            'from_business',
-            'from_business_details',
-            'purchase_bill_number',
-            'sub_total',
-            'grace_discount',
-            'shipping_and_handling_costs',
-            'additional_costs',
-            'additional_costs_remarks',
-            'bill_amount',
-            'paid_amount',
-            'shipping_handling_receipt',
-            'status',
-            'purchase_receipt',
-            'notes',
-            'created_at',
-            'updated_at',
-            'purchase_items',
-            'payments' # Added payments
-        )
-        read_only_fields = (
-            'sub_total',
-            'bill_amount',
-        )
+        fields = '__all__'
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
@@ -277,45 +192,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Invoice
-        fields = [
-            'id',
-            'created_by',
-            'last_updated_by',
-            'cancelled_by',
-            'customer',
-            'customer_details',
-            'customer_name',
-            'customer_phone_number',
-            'customer_pan',
-            'invoiced_on',
-            'due_on',
-            'invoice_number',
-            'status',
-            'delivery_charge',
-            'delivery_location',
-            'delivery_note',
-            'tracking_code',
-            'weight_unit',
-            'total_weight',
-            'additional_charge_amount',
-            'additional_charge_note',
-            'additional_discount_amount',
-            'additional_discount_note',
-            'sub_total_amount',
-            'total_discount_amount',
-            'total_taxable_amount',
-            'total_tax_amount',
-            'bill_amount',
-            'paid_amount',
-            'serial',
-            'fiscal_year_ad',
-            'fiscal_year_bs',
-            'is_paid',
-            'remarks',
-            'is_taxable',
-            'invoice_items',
-            'payments', # Added payments
-        ]
+        fields = '__all__'
         read_only_fields = [
             'invoice_number',
             'sub_total_amount',
@@ -385,23 +262,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Expense
-        fields = [
-            'id',
-            'category',
-            'paid_to',
-            'bill_number',
-            'payment_date',
-            'total_amount',
-            'status',
-            'remarks',
-            'created_by',
-            'last_updated_by',
-            'cancelled_by',
-            'created_at',
-            'updated_at',
-            'expense_items',
-            'payments', # Added payments
-        ]
+        fields = '__all__'
         read_only_fields = ['total_amount']
 
     def create(self, validated_data):
@@ -439,12 +300,7 @@ class PurchasedItemStatSerializer(serializers.Serializer):
     total_item_bought = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
-        fields = [
-            'item_name',
-            'average_price',
-            'last_bought_price',
-            'total_item_bought',
-        ]
+        fields = '__all__'
 
 class InvoicedItemStatSerializer(serializers.Serializer):
     item_name = serializers.CharField(read_only=True)
@@ -453,12 +309,7 @@ class InvoicedItemStatSerializer(serializers.Serializer):
     total_item_sold = serializers.IntegerField(read_only=True)
 
     class Meta:
-        fields = [
-            'item_name',
-            'average_price',
-            'last_sold_price',
-            'total_item_sold',
-        ]
+        fields = '__all__'
 
 class ExpensedItemStatSerializer(serializers.Serializer):
     item_name = serializers.CharField(read_only=True)
@@ -467,15 +318,10 @@ class ExpensedItemStatSerializer(serializers.Serializer):
     total_item_expensed_quantity = serializers.DecimalField(max_digits=60, decimal_places=2, read_only=True) # quantity is DecimalField in model
 
     class Meta:
-        fields = [
-            'item_name',
-            'average_price',
-            'last_expensed_price',
-            'total_item_expensed_quantity',
-        ]
+        fields = '__all__'
 
 class ItemNameSerializer(serializers.Serializer):
     item_name = serializers.CharField(read_only=True)
 
     class Meta:
-        fields = ['item_name']
+        fields = '__all__'

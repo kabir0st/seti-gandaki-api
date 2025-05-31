@@ -2,11 +2,12 @@ from decimal import Decimal
 
 from django.db import models
 from django.db.models import Sum # Import Sum
-from core.utils.functions import to_decimal
+from core.utils.functions import limit_size, to_decimal
 from django.db.models import signals
 from django.db.models.signals import post_save, pre_save, post_delete
 from django.dispatch import receiver
 from django.utils.timezone import now
+from django.core.validators import validate_image_file_extension
 
 from core.utils.models import DefaultModel
 from system.models import UserBase
@@ -49,6 +50,11 @@ class Expense(DefaultModel):
                                  blank=True,
                                  related_name='expenses')
 
+    receipt = models.ImageField(
+        null=True,
+        upload_to='expenses',
+        blank=True,
+        validators=[limit_size, validate_image_file_extension])
     paid_to = models.CharField(max_length=255, blank=True, null=True)
     bill_number = models.CharField(max_length=255, blank=True, null=True)
     payment_date = models.DateTimeField(default=now)

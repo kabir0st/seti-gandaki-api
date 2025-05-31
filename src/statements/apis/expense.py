@@ -1,7 +1,8 @@
 from rest_framework.exceptions import ValidationError
 from core.utils.viewsets import DefaultViewSet
-from statements.models.expense import ExpenseCategory, Expense, ExpenseItem
+from statements.models.expense import ExpenseCategory, Expense, ExpenseItem, ExpenseStatus
 from statements.serializers import ExpenseCategorySerializer, ExpenseSerializer, ExpenseItemSerializer
+from .filtersets.expense import ExpenseFilterSet, ExpenseItemFilterSet
 
 
 class ExpenseCategoryViewSet(DefaultViewSet):
@@ -14,8 +15,9 @@ class ExpenseCategoryViewSet(DefaultViewSet):
 class ExpenseViewSet(DefaultViewSet):
     queryset = Expense.objects.all()
     serializer_class = ExpenseSerializer
+    filterset_class = ExpenseFilterSet
     lookup_field = 'id'
-    search_fields = ['title', 'description']
+    search_fields = ['title', 'description', 'paid_to', 'bill_number']
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -26,6 +28,7 @@ class ExpenseViewSet(DefaultViewSet):
 
 class ExpenseItemViewSet(DefaultViewSet):
     serializer_class = ExpenseItemSerializer
+    filterset_class = ExpenseItemFilterSet
     lookup_field = 'id'
     search_fields = ['item_name']
 
