@@ -27,6 +27,10 @@ class GatePassFilterSet(django_filters.FilterSet):
                                                      lookup_expr='lte')
     is_open = django_filters.BooleanFilter(field_name='exit_time',
                                            lookup_expr='isnull')
+    created_at_after = django_filters.DateTimeFilter(field_name='created_at',
+                                                     lookup_expr='gte')
+    created_at_before = django_filters.DateTimeFilter(field_name='created_at',
+                                                      lookup_expr='lte')
 
     class Meta:
         model = GatePass
@@ -40,4 +44,6 @@ class GatePassFilterSet(django_filters.FilterSet):
             'exit_time_after',
             'exit_time_before',
             'is_open',
+            'created_at_after',
+            'created_at_before',
         ]
