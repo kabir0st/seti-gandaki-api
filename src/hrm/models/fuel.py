@@ -3,6 +3,7 @@ import uuid
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator,  RegexValidator
+from django.utils import timezone
 
 from core.utils.models.abstract import DefaultModel
 from core.utils.functions import generate_unique_code # Added import
@@ -96,7 +97,7 @@ class FuelTicket(DefaultModel):
     def mark_as_consumed(self, station: PetrolStation, commit=True):
         if not self.is_consumed:
             self.is_consumed = True
-            self.consumed_at = models.functions.Now() # Requires: from django.db.models import functions
+            self.consumed_at = timezone.now()
             self.consumed_by_station = station
             if commit:
                 # bill_amount is set on the instance before this method is called by the serializer
