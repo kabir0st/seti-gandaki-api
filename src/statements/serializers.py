@@ -15,20 +15,6 @@ from .models.expense import ExpenseCategory, Expense, ExpenseItem
 from .models.payments import Payment
 
 
-class LenientDateField(serializers.DateField):
-    def to_internal_value(self, value):
-        if isinstance(value, datetime.datetime):
-            # If it's a datetime object, convert it to a date object.
-            # If it's timezone-aware, convert to default timezone first.
-            if timezone.is_aware(value):
-                value = timezone.localtime(value).date()
-            else:
-                value = value.date()
-            return value # Return the date object directly
-
-        # If not a datetime object, let the parent class handle it (e.g., string parsing)
-        return super().to_internal_value(value)
-
 
 # Serializer for Business model
 class BusinessSerializer(serializers.ModelSerializer):
@@ -330,17 +316,9 @@ class PurchaseBillSerializer(serializers.ModelSerializer):
         required=False,
     )
     payments = PaymentSerializer(many=True, read_only=True)
-
-    # Explicitly define date fields to use LenientDateField
-    purchase_date = LenientDateField(
-        format="%Y-%m-%d", input_formats=['%Y-%m-%d', 'iso-8601']
-    )
-    bill_started_from = LenientDateField(
-        format="%Y-%m-%d", input_formats=['%Y-%m-%d', 'iso-8601'], required=False
-    )
-    bill_completed_on = LenientDateField(
-        format="%Y-%m-%d", input_formats=['%Y-%m-%d', 'iso-8601'], required=False, allow_null=True
-    )
+    purchase_date = serializers.DateField()
+    bill_started_from = serializers.DateField(required=False, allow_null=True)
+    bill_completed_on = serializers.DateField(required=False, allow_null=True)
 
     class Meta:
         model = PurchaseBill
@@ -354,10 +332,6 @@ class PurchaseBillSerializer(serializers.ModelSerializer):
                 'required': False,
                 'allow_null': True
             },
-            # Ensure date fields are not re-declared or conflicting if they were here
-            # 'purchase_date': {},
-            # 'bill_started_from': {},
-            # 'bill_completed_on': {},
         }
 
 

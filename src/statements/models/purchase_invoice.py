@@ -6,7 +6,7 @@ from django.db import models
 from django.db.models.signals import (post_delete, post_save, pre_delete,
                                       pre_save)
 from django.dispatch import receiver
-from django.utils.timezone import now
+from django.utils import timezone
 
 from core.utils.functions import limit_size, to_decimal
 from statements.models.business import Business
@@ -105,7 +105,7 @@ class PurchaseBill(models.Model):
 
     notes = models.TextField(blank=True, null=True)
 
-    bill_started_from = models.DateField(default=now)
+    bill_started_from = models.DateField(default=timezone.localdate)
     bill_completed_on = models.DateField(null=True, blank=True)
 
     assigned_vehicles = models.ManyToManyField(Vehicle,
