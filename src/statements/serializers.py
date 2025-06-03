@@ -113,6 +113,9 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
         model = InvoiceItem
         fields = '__all__'
         read_only_fields = ['sub_total_amount', 'bill_amount', 'discount_amount']
+        extra_kwargs = {
+            'invoice': {'required': False, 'allow_null': True}  # For nested creation, parent provides. For direct, client must.
+        }
 
 
 class StatementSettingsSerializer(serializers.ModelSerializer):
