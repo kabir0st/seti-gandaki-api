@@ -3,7 +3,7 @@ from django.core.validators import RegexValidator, MinValueValidator
 from rest_framework import serializers
 from hrm.models.fuel import FuelTicket, PetrolStation
 from hrm.models.attendance import Attendance, AttendanceChoice
-from statements.serializers import StaffSerializer # Import StaffSerializer
+from statements.serializers import StaffSerializer, VehicleSerializer # Import StaffSerializer
 from hrm.models.salary import SalaryDisbursement
 from system.serializers.users import MiniUserBaseSerializer
 from hrm.models.food_ticket import FoodTicket
@@ -29,11 +29,11 @@ class FuelTicketSerializer(serializers.ModelSerializer):
         required=False
     )
     ticket_url = serializers.SerializerMethodField()
-
+    vehicle_details = VehicleSerializer(source = 'vehicle', read_only=True)
     class Meta:
         model = FuelTicket
         fields = (
-            'id', 'ticket_id', 'dispatched_by',  'fuel_type', 'quantity_liters',
+            'id', 'ticket_id', 'dispatched_by','vehicle',"vehicle_details",  'fuel_type', 'quantity_liters',
             'vehicle_registration_number', 'driver_name', 'driver_phone', 'remarks',
             'is_consumed', 'consumed_at', 'consumed_by_station', 'consumed_by_station_id',
             'created_at', 'updated_at', 'ticket_url'

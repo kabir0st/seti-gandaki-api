@@ -137,7 +137,6 @@ class PetrolStationViewSet(DefaultViewSet):
 class FuelTicketViewSet(DefaultViewSet):
     queryset = FuelTicket.objects.all()
     serializer_class = FuelTicketSerializer
-    filter_backends = [DjangoFilterBackend]
     filterset_class = FuelTicketFilter
     permission_classes = [permissions.IsAuthenticated]
 
