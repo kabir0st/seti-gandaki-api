@@ -76,7 +76,7 @@ class Payment(DefaultModel):
             }
         elif self.expense:
             return {
-                'number': self.expense.third_party_invoice_number,
+                'number': self.expense.bill_number,
                 'type': 'Expenses',
                 'url': f'/statements/expenses/{self.expense.id}',
                 'id': self.expense.id

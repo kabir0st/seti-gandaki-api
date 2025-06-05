@@ -247,7 +247,6 @@ class PaymentAdmin(ModelAdmin):
         'id',
         'created_by',
         'header',
-        'payment_for_display',
         'amount',
         'is_refunded',
         'created_at',
@@ -262,12 +261,3 @@ class PaymentAdmin(ModelAdmin):
         'remarks',
     )
     autocomplete_fields = ['created_by', 'invoice', 'purchase_bill', 'expense']
-    readonly_fields = ('payment_for_display',)
-
-    def payment_for_display(self, obj):
-        payment_for_info = obj.payment_for
-        if isinstance(payment_for_info, dict):
-            return f"{payment_for_info.get('type', 'N/A')}: {payment_for_info.get('number', 'N/A')}"
-        return payment_for_info # Should be 'Manual' or similar
-
-    payment_for_display.short_description = 'Payment For'
