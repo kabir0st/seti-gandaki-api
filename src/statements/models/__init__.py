@@ -5,6 +5,7 @@ from .invoice import Invoice, InvoiceItem
 from .expense import ExpenseCategory, Expense, ExpenseItem
 from .support import Staff
 from .payments import Payment
+from .cashcounter import CashCounter
 
 __all__ = [
     "Business",
@@ -18,4 +19,4 @@ __all__ = [
     "ExpenseCategory",
     "Expense",
     "ExpenseItem","Payment"
-]
+,"CashCounter"]

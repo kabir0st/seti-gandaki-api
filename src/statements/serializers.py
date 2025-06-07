@@ -4,6 +4,7 @@ from rest_framework import serializers
 from decimal import Decimal
 from django.db.models import Q # Q can be useful for complex queries
 from hrm.models.fuel import FuelTicket
+from statements.models.cashcounter import CashCounter
 from .models.purchase_invoice import PurchaseBill, PurchaseItem
 from .models.business import Business
 from .models.logistics import Vehicle, GatePass, GatePassMovement, TripLog
@@ -480,4 +481,11 @@ class ItemNameSerializer(serializers.Serializer):
     item_name = serializers.CharField(read_only=True)
 
     class Meta:
+        fields = '__all__'
+class CashCounterSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the CashCounter model.
+    """
+    class Meta:
+        model = CashCounter
         fields = '__all__'
