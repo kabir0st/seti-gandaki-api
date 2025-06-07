@@ -36,23 +36,27 @@ class CashCounterLog(models.Model):
     denomination_5 = models.IntegerField(default=0, help_text="Change in 5 Rupee notes")
     denomination_2 = models.IntegerField(default=0, help_text="Change in 2 Rupee notes")
     denomination_1 = models.IntegerField(default=0, help_text="Change in 1 Rupee notes")
+    remarks = models.TextField(
+        blank=True,
+        help_text="Reason or purpose for this cash counter change."
+    )
     pre_amount = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        null=True, 
-        blank=True, 
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
         help_text="Total amount in cash counter before this log was applied."
     )
     final_amount = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        null=True, 
-        blank=True, 
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
         help_text="Total amount in cash counter after this log was applied."
     )
     created_at = models.DateTimeField(auto_now_add=True)
     is_applied = models.BooleanField(
-        default=False, 
+        default=False,
         help_text="Indicates if the changes in this log have been applied to the cash counter."
     )
     

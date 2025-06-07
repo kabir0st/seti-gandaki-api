@@ -2,12 +2,14 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
 from django_filters.rest_framework import DjangoFilterBackend
+from core.utils.viewsets import DefaultViewSet
 from statements.apis.filtersets.cashcounter import CashCounterFilterSet
-from rest_framework import viewsets
+from statements.apis.filtersets.cashcounter_log import CashCounterLogFilterSet
 from statements.models import CashCounter
-from statements.serializers import CashCounterSerializer
+from statements.models.cashcounter_log import CashCounterLog
+from statements.serializers import CashCounterLogSerializer, CashCounterSerializer
 
-class CashCounterViewSet(viewsets.ModelViewSet):
+class CashCounterViewSet(DefaultViewSet):
     """
     API endpoint that allows CashCounter to be viewed or edited.
     """
@@ -85,3 +87,65 @@ class CashCounterViewSet(viewsets.ModelViewSet):
 
         return Response({"change": change_to_return, "message": "Change calculated successfully."},
                         status=status.HTTP_200_OK)
+    def create(self, request, *args, **kwargs):
+        # Only allow setting the counter_name during creation
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Extract only the counter_name from validated data
+        counter_name = serializer.validated_data.get('counter_name')
+
+        # Create the CashCounter instance with only the counter_name
+        instance = CashCounter.objects.create(counter_name=counter_name)
+
+        # Serialize the created instance for the response
+        response_serializer = self.get_serializer(instance)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        # Only allow updating the counter_name
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+
+        # Create a serializer with only the counter_name field
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+
+        # Update only the counter_name if present in validated data
+        if 'counter_name' in serializer.validated_data:
+            instance.counter_name = serializer.validated_data['counter_name']
+            instance.save(update_fields=['counter_name'])
+
+        # Serialize the updated instance for the response
+        response_serializer = self.get_serializer(instance)
+        return Response(response_serializer.data)
+
+    @action(detail=True, methods=['post'], serializer_class=CashCounterLogSerializer)
+    def apply_change(self, request, pk=None):
+        """
+        Creates a CashCounterLog to record and apply changes to the cash counter.
+        """
+        cash_counter = self.get_object() # Get the specific CashCounter instance
+
+        # Use the CashCounterLogSerializer to validate incoming data
+        serializer = CashCounterLogSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Create the CashCounterLog instance, linking it to the cash counter
+        # The signals on CashCounterLog will handle the actual update to CashCounter
+        serializer.save(cash_counter=cash_counter)
+
+        return Response(
+            {"message": "Cash counter change logged and applied successfully."},
+            status=status.HTTP_201_CREATED
+        )
+
+class CashCounterLogViewSet(DefaultViewSet):
+    """
+    API endpoint that allows CashCounterLog to be viewed.
+    """
+    queryset = CashCounterLog.objects.all()
+    serializer_class = CashCounterLogSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = CashCounterLogFilterSet
+    http_method_names = ['get', 'head', 'options'] # Only allow listing

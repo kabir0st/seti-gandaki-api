@@ -1,5 +1,4 @@
-from .apis.cashcounter_log_apis import CashCounterLogViewSet
-from .apis.cashcounter_apis import CashCounterViewSet
+from .apis.cashcounter_apis import CashCounterLogViewSet, CashCounterViewSet
 from django.urls import path, include
 from .apis.purchase_bills import PurchaseBillViewSet, PurchaseItemViewSet, PurchasedItemStatViewSet
 from .apis.business import BusinessViewSet

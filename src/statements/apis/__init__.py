@@ -6,6 +6,7 @@ from .triplog import TripLogViewSet
 from .invoice import InvoiceViewSet, InvoiceItemViewSet
 from .payment import PaymentViewSet
 
+from .cashcounter_apis import CashCounterViewSet
 __all__ = [
     "BusinessViewSet",
     "PurchaseBillViewSet",
@@ -16,4 +17,6 @@ __all__ = [
     "InvoiceViewSet",
     "InvoiceItemViewSet",
     "PaymentViewSet",
+    "CashCounterViewSet",
+    "CashCounterLogViewSet",
 ]
