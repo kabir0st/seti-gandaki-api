@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.db.models import Q # Q can be useful for complex queries
 from hrm.models.fuel import FuelTicket
 from statements.models.cashcounter import CashCounter
+from statements.models.cashcounter_log import CashCounterLog
 from .models.purchase_invoice import PurchaseBill, PurchaseItem
 from .models.business import Business
 from .models.logistics import Vehicle, GatePass, GatePassMovement, TripLog
@@ -489,3 +490,11 @@ class CashCounterSerializer(serializers.ModelSerializer):
     class Meta:
         model = CashCounter
         fields = '__all__'
+class CashCounterLogSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the CashCounterLog model.
+    """
+    class Meta:
+        model = CashCounterLog
+        fields = '__all__'
+        read_only_fields = ('pre_amount', 'final_amount', 'created_at', 'is_applied') # These fields are set by the model/signals

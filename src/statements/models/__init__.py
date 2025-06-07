@@ -7,6 +7,7 @@ from .support import Staff
 from .payments import Payment
 from .cashcounter import CashCounter
 
+from .cashcounter_log import CashCounterLog
 __all__ = [
     "Business",
     "PurchaseBill",
@@ -18,5 +19,8 @@ __all__ = [
     "Staff",
     "ExpenseCategory",
     "Expense",
-    "ExpenseItem","Payment"
-,"CashCounter"]
+    "ExpenseItem",
+    "Payment",
+    "CashCounter",
+    "CashCounterLog",
+]
