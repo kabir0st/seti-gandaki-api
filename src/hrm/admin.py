@@ -113,23 +113,20 @@ class SalaryDisbursementAdmin(ModelAdmin):
 class FoodTicketAdmin(ModelAdmin):
     list_display = (
         'ticket_number', 'staff', 'meal_type', 'issued_by',
-        'issued_at', 'is_used', 'used_at', 'created_at'
+        'issued_at', 'created_at'
     )
     search_fields = (
         'ticket_number__iexact', 'staff__name', 'staff__user__username',
         'issued_by__username', 'meal_type'
     )
-    list_filter = ('meal_type', 'is_used', 'issued_at', 'used_at', 'staff', 'issued_by')
-    readonly_fields = ('created_at', 'updated_at', 'issued_at', 'used_at', 'ticket_number', 'issued_by')
+    list_filter = ('meal_type', 'issued_at', 'staff', 'issued_by')
+    readonly_fields = ('created_at', 'updated_at', 'issued_at', 'ticket_number', 'issued_by')
     autocomplete_fields = ['staff', 'issued_by']
     date_hierarchy = 'issued_at'
 
     fieldsets = (
         (None, {
             'fields': ('ticket_number', 'staff', 'meal_type', 'issued_by')
-        }),
-        ('Usage Details', {
-            'fields': ('is_used', 'used_at')
         }),
         ('Additional Information', {
             'fields': ('notes',)
@@ -145,8 +142,6 @@ class FoodTicketAdmin(ModelAdmin):
         if obj and obj.pk: # For existing objects
             readonly.append('staff') # Make staff readonly after creation
             readonly.append('meal_type') # Make meal_type readonly after creation
-        if obj and obj.is_used:
-            readonly.extend(['notes']) # Make notes readonly if used
         return readonly
 
     def save_model(self, request, obj, form, change):
