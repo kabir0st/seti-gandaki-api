@@ -26,11 +26,6 @@ class PaymentFilterSet(django_filters.FilterSet):
         lookup_expr='icontains',
         label='Created By (Username)'
     )
-    payment_method = django_filters.ChoiceFilter(
-        choices=Payment.payment_method_types,
-        field_name='header',
-        label='Payment Method'
-    )
     min_amount = django_filters.NumberFilter(field_name="amount", lookup_expr='gte')
     max_amount = django_filters.NumberFilter(field_name="amount", lookup_expr='lte')
     is_refunded = django_filters.BooleanFilter(field_name='is_refunded')
@@ -42,7 +37,7 @@ class PaymentFilterSet(django_filters.FilterSet):
             'purchase_bill',
             'expense',
             'created_by',
-            'payment_method',
+            'header',
             'min_amount',
             'max_amount',
             'is_refunded',

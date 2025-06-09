@@ -246,12 +246,11 @@ class PaymentAdmin(ModelAdmin):
     list_display = (
         'id',
         'created_by',
-        'header',
         'amount',
         'is_refunded',
         'created_at',
     )
-    list_filter = ('header', 'is_refunded', 'created_at', 'invoice', 'purchase_bill', 'expense')
+    list_filter = ( 'is_refunded', 'created_at', 'invoice', 'purchase_bill', 'expense')
     search_fields = (
         'id',
         'created_by__username', # Assuming UserBase has a username field
