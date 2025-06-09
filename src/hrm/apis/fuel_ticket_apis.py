@@ -202,6 +202,8 @@ class FuelTicketViewSet(DefaultViewSet):
         serializer = self.get_serializer(ticket)
         return Response(serializer.data)
 
+
+
 class FuelingStatsAPIView(views.APIView):
     permission_classes = [permissions.IsAdminUser] # Or a more specific permission
 
@@ -248,6 +250,7 @@ class FuelingStatsAPIView(views.APIView):
             )
         }
     )
+
     def get(self, request, *args, **kwargs):
         all_tickets_queryset = FuelTicket.objects.all()
         consumed_tickets_queryset = FuelTicket.objects.filter(is_consumed=True)
@@ -257,6 +260,7 @@ class FuelingStatsAPIView(views.APIView):
         end_date_str = request.query_params.get('end_date')
         fuel_type_filter = request.query_params.get('fuel_type')
         station_id_filter = request.query_params.get('station_id')
+        get_all_ids = request.query_params.get('get_all_ids', None)
 
         applied_filters = {}
 
@@ -333,6 +337,14 @@ class FuelingStatsAPIView(views.APIView):
             latest_date=models.Max('consumed_at')
         )
 
+        # Stats for unpaid tickets
+        unpaid_tickets_queryset = all_tickets_queryset.filter(is_paid=False)
+
+        unpaid_aggregation = unpaid_tickets_queryset.aggregate(
+            total_bill_amount=Sum('bill_amount')
+        )
+        unpaid_total_bill_amount = unpaid_aggregation.get('total_bill_amount') or 0
+
         response_data = {
             "filters_applied": applied_filters,
             "total_tickets_created": total_tickets_created,
@@ -347,6 +359,7 @@ class FuelingStatsAPIView(views.APIView):
                 "diesel_liters": round(float(consumed_diesel), 2),
                 "total_liters": round(float(consumed_petrol + consumed_diesel), 2)
             },
+            "total_unpaid_bill_amount": round(float(unpaid_total_bill_amount), 2),
             "period_coverage_created": {
                 "earliest_ticket_date": period_created_data.get('earliest_date').isoformat() if period_created_data.get('earliest_date') else None,
                 "latest_ticket_date": period_created_data.get('latest_date').isoformat() if period_created_data.get('latest_date') else None,
@@ -356,4 +369,8 @@ class FuelingStatsAPIView(views.APIView):
                 "latest_ticket_date": period_consumed_data.get('latest_date').isoformat() if period_consumed_data.get('latest_date') else None,
             }
         }
+
+        if get_all_ids and get_all_ids.lower() in ['true', '1']:
+             response_data['unpaid_ticket_ids'] = list(unpaid_tickets_queryset.values_list('ticket_id', flat=True))
+
         return Response(response_data)

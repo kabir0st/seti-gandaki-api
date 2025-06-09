@@ -104,54 +104,43 @@ class ExpenseItem(DefaultModel):
 
 @receiver(post_save, sender=ExpenseItem)
 def expense_item_post_save_handler(sender, created, instance, **kwargs):
-    # Update the total_amount of the parent Expense using aggregation
     expense = instance.expense
     aggregation = expense.expense_items.aggregate(total=Sum('total_price'))
     expense.total_amount = aggregation['total'] or Decimal('0.00')
-    
-    # Disconnect this signal to prevent recursion if expense.save() triggers it.
-    # The Expense model's own post_save (post_save_handler_expense) will handle
-    # paid_amount and is_paid updates.
-
-    if hasattr(instance, 'attached_fuel_tickets'):
-        # If attached_fuel_tickets is a ManyToManyField, ensure it's saved first
-        pass
-
     signals.post_save.disconnect(expense_item_post_save_handler, sender=ExpenseItem)
-    expense.save(update_fields=['total_amount']) # Only update total_amount here
-    # Reconnect the signal
+    expense.save(update_fields=['total_amount'])
     signals.post_save.connect(expense_item_post_save_handler, sender=ExpenseItem)
 
 
 @receiver(post_delete, sender=ExpenseItem)
 def expense_item_post_delete_handler(sender, instance, **kwargs):
-    # Update the total_amount of the parent Expense after an item is deleted using aggregation
     expense = instance.expense
-    # Ensure expense instance is up-to-date if other operations might have changed it
-    # expense.refresh_from_db() # Consider if necessary based on broader application logic
-    
     aggregation = expense.expense_items.aggregate(total=Sum('total_price'))
     new_total_amount = aggregation['total'] or Decimal('0.00')
 
     if expense.total_amount != new_total_amount:
         expense.total_amount = new_total_amount
-        # Disconnect the ExpenseItem post_save signal temporarily if it's the same handler,
-        # though for post_delete, this specific handler (expense_item_post_save_handler) isn't the one being disconnected.
-        # The main concern is if expense.save() would somehow re-trigger operations on ExpenseItem.
-        # For clarity, ensure we are only disconnecting the relevant signal if there's a risk of loop.
-        # Here, we are in post_delete of ExpenseItem, saving Expense.
-        # The Expense's own post_save (post_save_handler_expense) will run.
         expense.save(update_fields=['total_amount'])
 
 
+
+@receiver(pre_save, sender=Expense)
+def expense_pre_save_handler(sender, instance, **kwargs):
+    # instance.trigger = 
+    if instance.pk:
+        original_instance = sender.objects.get(pk=instance.pk)
+        # if instance.is_paid != original_instance.is_paid:
+
+        if original_instance.status != ExpenseStatus.DRAFT and instance.status == ExpenseStatus.DRAFT:
+            instance.status = original_instance.status
+        elif original_instance.status != ExpenseStatus.DRAFT and instance.status != original_instance.status:
+            if instance.status not in [ExpenseStatus.COMPLETE, ExpenseStatus.CANCELLED]:
+                instance.status = original_instance.status
+            for field_name in instance.ALLOW_UPDATE:
+                setattr(instance, field_name, getattr(original_instance, field_name))
+
 @receiver(post_save, sender=Expense)
 def post_save_handler_expense(sender, instance, created, **kwargs):
-    """
-    Updates the paid_amount and is_paid status of an Expense
-    after payments are made or total_amount changes.
-    """
-    # Calculate current paid amount using aggregation
-    # Assumes 'payments' is the correct related_name from Payment model to Expense
     paid_aggregation = instance.payments.filter(is_refunded=False).aggregate(total_paid=Sum('amount'))
     current_paid_amount = paid_aggregation['total_paid'] or Decimal("0.00")
 
@@ -172,19 +161,3 @@ def post_save_handler_expense(sender, instance, created, **kwargs):
         instance.save(update_fields=['paid_amount', 'is_paid'])
         post_save.connect(post_save_handler_expense, sender=Expense)
 
-
-@receiver(pre_save, sender=Expense)
-def expense_pre_save_handler(sender, instance, **kwargs):
-    # Enforce editability based on status
-    if instance.pk:  # Only for existing instances
-        original_instance = sender.objects.get(pk=instance.pk)
-        if original_instance.status != ExpenseStatus.DRAFT and instance.status == ExpenseStatus.DRAFT:
-            # Prevent changing status back to DRAFT from non-DRAFT
-            instance.status = original_instance.status
-        elif original_instance.status != ExpenseStatus.DRAFT and instance.status != original_instance.status:
-            # Allow status change from non-DRAFT to COMPLETE or CANCELLED, but not other field edits
-            if instance.status not in [ExpenseStatus.COMPLETE, ExpenseStatus.CANCELLED]:
-                instance.status = original_instance.status
-            # Revert other fields if not in DRAFT
-            for field_name in instance.ALLOW_UPDATE:
-                setattr(instance, field_name, getattr(original_instance, field_name))

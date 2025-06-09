@@ -36,4 +36,4 @@ class PaymentViewSet(DefaultViewSet):
         payment.is_refunded = True
         payment.save()
         serializer = self.get_serializer(payment)
-        return Response(serializer.data)
+        return Response(serializer.data)    

@@ -412,6 +412,13 @@ class ExpenseCategorySerializer(serializers.ModelSerializer):
 
 # Note: PaymentSerializer was moved up
 
+class MiniExpenseSerializer(serializers.ModelSerializer):
+    """
+    A minimal serializer for Expense model, used in nested representations.
+    """
+    class Meta:
+        model = Expense
+        fields = ('id', 'expense_number', 'expense_date', 'total_amount', 'category')
 
 class ExpenseSerializer(serializers.ModelSerializer):
     expense_items = ExpenseItemSerializer(many=True)

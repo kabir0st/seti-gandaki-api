@@ -1,12 +1,13 @@
 from decimal import Decimal
-from django.core.validators import RegexValidator, MinValueValidator
+from django.core.validators import  MinValueValidator
 from rest_framework import serializers
 from hrm.models.fuel import FuelTicket, PetrolStation
-from hrm.models.attendance import Attendance, AttendanceChoice
-from statements.serializers import StaffSerializer, VehicleSerializer # Import StaffSerializer
+from hrm.models.attendance import Attendance
+from statements.serializers import  StaffSerializer, VehicleSerializer 
 from hrm.models.salary import SalaryDisbursement
 from system.serializers.users import MiniUserBaseSerializer
 from hrm.models.food_ticket import FoodTicket
+
 
 class PetrolStationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -16,6 +17,7 @@ class PetrolStationSerializer(serializers.ModelSerializer):
             'is_active', 'created_at', 'updated_at'
         )
         read_only_fields = ('id', 'created_at', 'updated_at')
+
 
 class FuelTicketSerializer(serializers.ModelSerializer):
     dispatched_by = MiniUserBaseSerializer(read_only=True)
@@ -30,14 +32,16 @@ class FuelTicketSerializer(serializers.ModelSerializer):
     )
     ticket_url = serializers.SerializerMethodField()
     vehicle_details = VehicleSerializer(source = 'vehicle', read_only=True)
+
     class Meta:
         model = FuelTicket
         fields = (
             'id', 'ticket_id', 'dispatched_by','vehicle',"vehicle_details",  'fuel_type', 'quantity_liters',
             'vehicle_registration_number', 'driver_name', 'driver_phone', 'remarks',
             'is_consumed', 'consumed_at', 'consumed_by_station', 'consumed_by_station_id',
-            'created_at', 'updated_at', 'ticket_url'
+            'created_at', 'updated_at', 'ticket_url', 'bill_amount'
         )
+
         read_only_fields = (
             'id', 'ticket_id', 'is_consumed', 'consumed_at', 
             'created_at', 'updated_at', 'ticket_url'
@@ -78,17 +82,10 @@ class FuelTicketConsumeSerializer(serializers.Serializer):
     def save(self, **kwargs):
         ticket = self.context['ticket'] 
         station = self.context['station']
-        validated_data = self.validated_data # Access validated_data here
-        
+        validated_data = self.validated_data
         if ticket.is_consumed:
             raise serializers.ValidationError(f"Ticket already consumed at {ticket.consumed_by_station.name} on {ticket.consumed_at.strftime('%Y-%m-%d %H:%M')}.")
-
-        # Set the bill_amount on the ticket instance from validated data
         ticket.bill_amount = validated_data.get('bill_amount')
-        
-        # Pass bill_amount to mark_as_consumed if that method is adapted to take it,
-        # or ensure mark_as_consumed saves it if it's part of update_fields.
-        # For now, bill_amount is set on the instance, mark_as_consumed will save it if included in update_fields.
         ticket.mark_as_consumed(station=station)
         return ticket
 

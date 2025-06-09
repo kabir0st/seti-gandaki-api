@@ -7,7 +7,10 @@ from django.utils import timezone
 
 from core.utils.models.abstract import DefaultModel
 from core.utils.functions import generate_unique_code # Added import
+from statements.models.expense import Expense
 from statements.models.purchase_invoice import Vehicle
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 class PetrolStation(DefaultModel):
@@ -54,6 +57,7 @@ class FuelTicket(DefaultModel):
         decimal_places=2,
         validators=[MinValueValidator(0.01)]
     )
+
     bill_amount = models.DecimalField(max_digits=10,
                                     decimal_places=2,
                                     default=Decimal("0.00"))
@@ -67,27 +71,26 @@ class FuelTicket(DefaultModel):
         null=True, blank=True,
         related_name="fuel_tickets"
     )
-    
+
     remarks = models.TextField(blank=True, null=True)
-    
     is_consumed = models.BooleanField(default=False, db_index=True)
     consumed_at = models.DateTimeField(null=True, blank=True)
-
     consumed_by_station = models.ForeignKey(
         PetrolStation,
-        on_delete=models.SET_NULL, # Or models.PROTECT if station deletion should prevent ticket consumption update
+        on_delete=models.SET_NULL,
         null=True, blank=True,
         related_name="consumed_fuel_tickets"
     )
-    
-    
+
+    is_paid = models.BooleanField(default=False)
+
     # Extra fields for non-system vehicles/drivers if needed
     driver_name = models.CharField(max_length=100, blank=True, null=True)
     driver_phone = models.CharField(max_length=20, blank=True, null=True)
 
-
     def __str__(self):
         return f"Ticket {str(self.ticket_id)[:8]} for {self.quantity_liters}L of {self.fuel_type}"
+
 
     class Meta:
         verbose_name = "Fuel Ticket"
@@ -103,3 +106,4 @@ class FuelTicket(DefaultModel):
                 # bill_amount is set on the instance before this method is called by the serializer
                 self.save(update_fields=['is_consumed', 'consumed_at', 'consumed_by_station', 'bill_amount'])
         # else: raise some error or handle already consumed case
+

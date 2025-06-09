@@ -6,9 +6,6 @@ from django.utils.translation import gettext_lazy as _
 from statements.models import Staff
 
 class FoodTicket(models.Model):
-    """
-    Model to represent a food ticket issued to a staff member.
-    """
     MEAL_TYPE_CHOICES = [
         ('breakfast', _('Breakfast')),
         ('lunch', _('Lunch')),
@@ -50,23 +47,14 @@ class FoodTicket(models.Model):
         verbose_name=_('Issued At'),
         help_text=_('Timestamp when the ticket was generated.')
     )
-    is_used = models.BooleanField(
-        default=False,
-        verbose_name=_('Is Used'),
-        help_text=_('Indicates if the ticket has been redeemed.')
-    )
-    used_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        verbose_name=_('Used At'),
-        help_text=_('Timestamp when the ticket was redeemed.')
-    )
     notes = models.TextField(
         blank=True,
         null=True,
         verbose_name=_('Notes'),
         help_text=_('Any additional notes or comments.')
     )
+    
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Created At"))
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_("Updated At"))
 
@@ -108,10 +96,3 @@ class FoodTicket(models.Model):
             self.ticket_number = f'FT-{date_str}-{sequence_number:04d}' # Example: FT-20231027-0001
 
         super().save(*args, **kwargs)
-
-    # Consider adding a method to mark as used:
-    # def mark_as_used(self):
-    #     if not self.is_used:
-    #         self.is_used = True
-    #         self.used_at = timezone.now()
-    #         self.save(update_fields=['is_used', 'used_at'])
