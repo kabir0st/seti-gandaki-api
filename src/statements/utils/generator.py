@@ -65,10 +65,5 @@ def generate_invoice_number(invoice, is_taxable):
         serial = serial + 1
     else:
         serial = 1
-    invoice_number = "INV" + \
-        str(serial).zfill(6) + "-" + years['bs']
-    if is_taxable:
-        invoice_number = "TAX-" + invoice_number
-    else:
-        invoice_number = "NT-" + invoice_number
-    return ([invoice_number, years, str(serial).zfill(6)])
+    invoice_number = f"SG-{years['bs']}-{str(serial).zfill(7)}"
+    return ([invoice_number, years, str(serial).zfill(7)])
