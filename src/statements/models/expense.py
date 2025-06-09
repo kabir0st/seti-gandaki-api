@@ -94,6 +94,7 @@ class ExpenseItem(DefaultModel):
     total_price = models.DecimalField(default=0.00, max_digits=60, decimal_places=2)
     remarks = models.TextField(blank=True, null=True)
     attached_fuel_tickets = models.ManyToManyField('hrm.FuelTicket',related_name='expense_item', blank=True)
+
     def __str__(self):
         return f'{self.item_name} - {self.expense}'
 
@@ -126,10 +127,12 @@ def expense_item_post_delete_handler(sender, instance, **kwargs):
 
 @receiver(pre_save, sender=Expense)
 def expense_pre_save_handler(sender, instance, **kwargs):
-    # instance.trigger = 
     if instance.pk:
         original_instance = sender.objects.get(pk=instance.pk)
-        # if instance.is_paid != original_instance.is_paid:
+        # Store original values to check for changes in post_save
+        instance._original_is_paid = original_instance.is_paid
+        instance._original_status = original_instance.status
+
 
         if original_instance.status != ExpenseStatus.DRAFT and instance.status == ExpenseStatus.DRAFT:
             instance.status = original_instance.status
@@ -154,6 +157,22 @@ def post_save_handler_expense(sender, instance, created, **kwargs):
     if instance.is_paid != new_is_paid_status:
         instance.is_paid = new_is_paid_status
         needs_save = True
+
+    # Check if is_paid or status has changed
+    is_paid_changed = hasattr(instance, '_original_is_paid') and instance.is_paid != instance._original_is_paid
+    status_changed = hasattr(instance, '_original_status') and instance.status != instance._original_status
+
+    if is_paid_changed or status_changed:
+        # Update attached fuel tickets
+        for item in instance.expense_items.all():
+            if item.attached_fuel_tickets.exists():
+                if instance.status == ExpenseStatus.CANCELLED:
+                    # If expense is cancelled, set is_paid on fuel tickets to False
+                    item.attached_fuel_tickets.update(is_paid=False)
+                elif is_paid_changed:
+                    # If is_paid changed, align fuel ticket is_paid with expense is_paid
+                    item.attached_fuel_tickets.update(is_paid=instance.is_paid)
+
 
     if needs_save:
         # Disconnect signal to avoid recursion and save
