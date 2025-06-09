@@ -170,11 +170,7 @@ class FoodTicketSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FoodTicket
-        fields = (
-            'id', 'staff', 'staff_id', 'issued_by', 'ticket_number', 
-            'meal_type', 'meal_type_display', 'issued_at', 'is_used', 
-            'used_at', 'notes', 'created_at', 'updated_at'
-        )
+        fields = "__all__"
         read_only_fields = (
             'id', 'issued_by', 'ticket_number', 'issued_at', 
             'created_at', 'updated_at', 'meal_type_display'
