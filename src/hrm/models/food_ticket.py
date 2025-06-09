@@ -80,19 +80,33 @@ class FoodTicket(models.Model):
         return f'{self.ticket_number} for {staff_name} ({self.get_meal_type_display()})'
 
     def save(self, *args, **kwargs):
+        from django.utils import timezone
         if not self.ticket_number:
-            # Generate a unique ticket number, e.g., FT-YYYYMMDD-XXXX
-            # This is a simple example; a more robust sequence generator might be needed.
-            last_ticket = FoodTicket.objects.order_by('id').last()
-            if last_ticket and last_ticket.ticket_number and last_ticket.ticket_number.startswith('FT-'):
+            today = timezone.now().date()
+            today_min = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
+            today_max = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.max.time()))
+
+            # Find the last ticket created today
+            last_ticket_today = FoodTicket.objects.filter(
+                created_at__range=(today_min, today_max)
+            ).order_by('ticket_number').last()
+
+            sequence_number = 1
+            if last_ticket_today and last_ticket_today.ticket_number:
                 try:
-                    last_num = int(last_ticket.ticket_number.split('-')[-1])
-                    new_num = last_num + 1
-                except ValueError:
-                    new_num = 1 # Fallback if parsing fails
-            else:
-                new_num = 1
-            self.ticket_number = f'FT-{new_num:04d}' # Example: FT-0001
+                    # Extract the sequence number from the last ticket of the day
+                    # Assuming format FT-YYYYMMDD-XXXX
+                    parts = last_ticket_today.ticket_number.split('-')
+                    if len(parts) == 3 and parts[0] == 'FT':
+                        last_sequence = int(parts[2])
+                        sequence_number = last_sequence + 1
+                except (ValueError, IndexError):
+                    # If parsing fails, start sequence from 1
+                    sequence_number = 1
+
+            date_str = today.strftime('%Y%m%d')
+            self.ticket_number = f'FT-{date_str}-{sequence_number:04d}' # Example: FT-20231027-0001
+
         super().save(*args, **kwargs)
 
     # Consider adding a method to mark as used:
