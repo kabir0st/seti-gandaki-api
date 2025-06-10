@@ -6,20 +6,19 @@ from .models.logistics import GatePass, GatePassMovement, TripLog, Vehicle
 from .models.purchase_invoice import PurchaseBill, PurchaseItem
 from .models.invoice.invoice import Invoice
 from .models.invoice.invoice_item import InvoiceItem
-from .models.payments import Payment
+from .models.payments import Payment, Account
 from .models.expense import ExpenseCategory, Expense, ExpenseItem
 from .models.settings import StatementSettings
 from .models.support import Staff
+from .models.cashcounter import CashCounter
+from .models.cashcounter_log import CashCounterLog
 
 @admin.register(Business)
 class BusinessAdmin(ModelAdmin):
     list_display = (
         'name',
         'registration_number',
-        'contact_person',
-        'contact_email',
-        'phone_number',
-        'is_active',
+        'current_amount',
         'created_at',
         'updated_at',
     )
@@ -260,3 +259,124 @@ class PaymentAdmin(ModelAdmin):
         'remarks',
     )
     autocomplete_fields = ['created_by', 'invoice', 'purchase_bill', 'expense']
+
+
+@admin.register(Account)
+class AccountAdmin(ModelAdmin):
+    list_display = (
+        'name',
+        'account_number',
+        'bank_name',
+        'current_amount',
+        'created_at',
+        'updated_at',
+    )
+    search_fields = ('name', 'account_number', 'bank_name', 'branch_name')
+    readonly_fields = ('created_at', 'updated_at')
+    ordering = ('name',)
+
+
+class CashCounterLogInline(TabularInline):
+    model = CashCounterLog
+    extra = 0
+    readonly_fields = ('created_at', 'pre_amount', 'final_amount', 'is_applied')
+    fields = (
+        'denomination_1000', 'denomination_500', 'denomination_100',
+        'denomination_50', 'denomination_20', 'denomination_10',
+        'denomination_5', 'denomination_2', 'denomination_1',
+        'remarks', 'pre_amount', 'final_amount', 'is_applied', 'created_at'
+    )
+
+    def has_change_permission(self, request, obj=None):
+        return False  # Logs should not be modified after creation
+
+
+@admin.register(CashCounter)
+class CashCounterAdmin(ModelAdmin):
+    list_display = (
+        'counter_name',
+        'get_total_amount',
+        'denomination_1000',
+        'denomination_500',
+        'denomination_100',
+    )
+    search_fields = ('counter_name',)
+    ordering = ('counter_name',)
+    inlines = [CashCounterLogInline]
+
+    fieldsets = (
+        (None, {
+            'fields': ('counter_name',)
+        }),
+        ('High Denominations', {
+            'fields': ('denomination_1000', 'denomination_500', 'denomination_100')
+        }),
+        ('Medium Denominations', {
+            'fields': ('denomination_50', 'denomination_20', 'denomination_10')
+        }),
+        ('Low Denominations', {
+            'fields': ('denomination_5', 'denomination_2', 'denomination_1')
+        }),
+    )
+
+    def get_total_amount(self, obj):
+        return f"Rs. {obj.total_amount():,.2f}"
+    get_total_amount.short_description = 'Total Amount'
+
+
+@admin.register(CashCounterLog)
+class CashCounterLogAdmin(ModelAdmin):
+    list_display = (
+        'cash_counter',
+        'get_total_change',
+        'pre_amount',
+        'final_amount',
+        'is_applied',
+        'created_at',
+    )
+    list_filter = ('is_applied', 'created_at', 'cash_counter')
+    search_fields = ('cash_counter__counter_name', 'remarks')
+    readonly_fields = ('created_at', 'pre_amount', 'final_amount', 'is_applied')
+    autocomplete_fields = ['cash_counter']
+    date_hierarchy = 'created_at'
+    ordering = ('-created_at',)
+
+    fieldsets = (
+        (None, {
+            'fields': ('cash_counter', 'remarks')
+        }),
+        ('High Denominations Changes', {
+            'fields': ('denomination_1000', 'denomination_500', 'denomination_100')
+        }),
+        ('Medium Denominations Changes', {
+            'fields': ('denomination_50', 'denomination_20', 'denomination_10')
+        }),
+        ('Low Denominations Changes', {
+            'fields': ('denomination_5', 'denomination_2', 'denomination_1')
+        }),
+        ('Summary', {
+            'fields': ('pre_amount', 'final_amount', 'is_applied'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def get_total_change(self, obj):
+        change = obj.calculate_total_change()
+        return f"Rs. {change:+,.2f}"
+    get_total_change.short_description = 'Total Change'
+
+    def has_change_permission(self, request, obj=None):
+        # Prevent modification of existing logs
+        if obj and obj.pk:
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        # Prevent deletion of applied logs
+        if obj and obj.is_applied:
+            return False
+        return super().has_delete_permission(request, obj)

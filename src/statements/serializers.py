@@ -1,7 +1,6 @@
 from rest_framework import serializers
 
 from statements.models.business import Business
-from statements.models.business_credit_log import BusinessCreditLog
 from statements.models.cashcounter import CashCounter
 from statements.models.cashcounter_log import CashCounterLog
 
@@ -23,7 +22,7 @@ from .models.invoice.invoice import Invoice, InvoiceStatus
 from .models.invoice.invoice_item import InvoiceItem
 from .models.settings import StatementSettings
 from .models.expense import ExpenseCategory, Expense, ExpenseItem
-from .models.payments import Payment
+from .models.payments import Payment, Account
 
 
 
@@ -32,11 +31,6 @@ class BusinessSerializer(serializers.ModelSerializer):
         model = Business
         fields = '__all__'
 
-
-class BusinessCreditLogSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = BusinessCreditLog
-        fields = '__all__'
 
 
 class CashCounterSerializer(serializers.ModelSerializer):
@@ -307,6 +301,8 @@ class ExpenseItemSerializer(serializers.ModelSerializer):
 
 class PaymentSerializer(serializers.ModelSerializer):
     created_by_details = serializers.StringRelatedField(source='created_by', read_only=True, allow_null=True)
+    related_account_details = serializers.StringRelatedField(source='related_account', read_only=True, allow_null=True)
+    related_business_details = serializers.StringRelatedField(source='related_business', read_only=True, allow_null=True)
     # To avoid circular dependency, we will use StringRelatedField or PrimaryKeyRelatedField for related models
     # or define them as forward references if DRF version supports it well.
     # For now, let's defer full nested serializers for invoice/purchase_bill/expense details within payment
@@ -340,6 +336,13 @@ class PaymentSerializer(serializers.ModelSerializer):
                 "A payment can only be associated with one of: Invoice, Purchase Bill, or Expense."
             )
         return data
+
+
+class AccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Account
+        fields = '__all__'
+        read_only_fields = ('created_at', 'updated_at')
 
 
 # Serializer for PurchaseBill

@@ -2,14 +2,14 @@ from decimal import Decimal
 
 from django.db import models
 from django.dispatch import receiver
-from django.core.exceptions import ValidationError # Added import
 
 from core.utils.models import DefaultModel
-from statements.models import Invoice, PurchaseBill, Expense
-from statements.models.business import Business
-from statements.models.business_credit_log import BusinessCreditLog # Added import
+from statements.models.invoice.invoice import Invoice
+from statements.models.purchase_invoice import PurchaseBill
 from statements.models.expense import Expense
+from statements.models.business import Business
 from system.models.user import UserBase
+from statements.models.business_credit_log import BusinessCreditLog
 
 
 def image_path(instance, filename):
@@ -38,7 +38,7 @@ class Payment(DefaultModel):
                                    null=True,
                                    blank=True)
 
-    payment_method_types = (('from_business_credit', 'From Business Credit'), ('fonepay', 'Fonepay'),
+    payment_method_types = (('business_credit', 'Business Credit'), ('fonepay', 'Fonepay'),
                             ('cash', 'Cash'), ('transfer',
                                                'Transfer'), ('card', 'Card'))
 
@@ -70,7 +70,23 @@ class Payment(DefaultModel):
 
     related_business = models.ForeignKey(Business, on_delete=models.PROTECT, default=None, null=True, blank=True)
     related_account = models.ForeignKey(Account, on_delete=models.PROTECT, default=None, null=True, blank=True)
-    
+
+    #  from_business_credit
+    # if from_business_credit is selected and none of the statements like invoice,
+    # purchase_bill or expense are attached
+    # Deposit : +  +
+    # withdraw : -  -
+    # if from_business_credit is selected and any of the statements like invoice,
+    # purchase_bill or expense are attached
+    # is populated , then related_business must be attached,
+    # but related_account must be null.
+    # purchase bill pay:
+    # related_business: +  
+    # invoice pay:
+    # related_business: - 
+    # expense 
+    # related_business: +
+
     remarks = models.CharField(max_length=255, blank=True, null=True)
 
     receipt = models.FileField(upload_to='payments', null=True, blank=True)
@@ -86,21 +102,32 @@ class Payment(DefaultModel):
     def clean(self):
         from django.core.exceptions import ValidationError
 
-        if self.header == 'from_business_credit':
+        if self.header == 'business_credit':
             if not self.related_business:
-                raise ValidationError("Related business must be attached when payment method is 'From Business Credit'.")
-
-            # Check if business has enough credit
-            if self.related_business.current_amount < self.amount:
-                raise ValidationError(f"Business '{self.related_business.name}' does not have enough credit.")
-
-            # Create a BusinessCreditLog for the withdrawal
-            # This should ideally be done in a post_save signal or a separate service
-            # to ensure the Payment is saved successfully first.
-            # However, for validation purposes in clean, we only check the amount.
-            # The actual log creation and business amount update will be handled
-            # in the post_save signal of the Payment model.
-            pass # The actual logic for creating the log and updating business amount will be in post_save.
+                raise ValidationError("Related business must be attached when payment method is 'Business Credit'.")
+            
+            # Check if any statements are attached
+            has_statements = bool(self.invoice or self.purchase_bill or self.expense)
+            
+            if not has_statements:
+                # No statements attached - both business and account required
+                if not self.related_account:
+                    raise ValidationError("Related account must be attached when no statements are linked to business credit payment.")
+                
+                # Validation based on action type
+                if self.action == 'deposit':
+                    # Check if business has enough credit
+                    if self.related_business.current_amount < self.amount:
+                        raise ValidationError(f"Business '{self.related_business.name}' does not have enough credit. Available: {self.related_business.current_amount}, Required: {self.amount}")
+                
+                elif self.action == 'withdraw':
+                    # Check if account has enough balance
+                    if self.related_account.current_amount < self.amount:
+                        raise ValidationError(f"Account '{self.related_account.name}' does not have enough balance. Available: {self.related_account.current_amount}, Required: {self.amount}")
+            else:
+                # Statements attached - account should be null
+                if self.related_account:
+                    raise ValidationError("Related account must be null when statements are attached to business credit payment.")
 
     @property
     def payment_for(self):
@@ -136,6 +163,8 @@ def pre_save_handler_payment(sender, instance, **kwargs):
         instance._original_amount = original_instance.amount
         instance._original_action = original_instance.action
         instance._original_related_account = original_instance.related_account
+        instance._original_related_business = original_instance.related_business
+        instance._original_header = original_instance.header
 
 
 @receiver(models.signals.post_save, sender=Payment)
@@ -158,78 +187,21 @@ def post_save_handler_payment(sender, instance, created, **kwargs):
         # Reconnect the signal
         models.signals.post_save.connect(post_save_handler_payment, sender=Payment)
 
-    # Update related account amount and create BusinessCreditLog if applicable
-    if instance.related_account:
-        if instance.header == 'from_business_credit':
-            # Business credit is handled by BusinessCreditLog signal
-            # Create BusinessCreditLog for withdrawal
-            if created or (hasattr(instance, '_original_amount') and (instance.amount != instance._original_amount or instance.related_business != instance._original_related_business)):
-                 # If created or amount/business changed, create a new log entry
-                 # For updates, find the existing log and update it, or create a new one if not found.
-                 if not created:
-                    try:
-                        # Find the BusinessCreditLog created for the original payment
-                        original_log = BusinessCreditLog.objects.get(
-                            remarks=f'Payment {instance.id} using business credit',
-                            business=instance._original_related_business,
-                            action='withdraw',
-                            amount=instance._original_amount
-                        )
-                        # Update the existing log entry
-                        original_log.business = instance.related_business
-                        original_log.amount = instance.amount
-                        original_log.save() # This will trigger the BusinessCreditLog post_save signal
-                    except BusinessCreditLog.DoesNotExist:
-                        # If the original log doesn't exist (e.g., manual creation or error),
-                        # create a new one for the current state.
-                         BusinessCreditLog.objects.create(
-                            business=instance.related_business,
-                            action='withdraw',
-                            amount=instance.amount,
-                            remarks=f'Payment {instance.id} using business credit',
-                            created_by=instance.created_by
-                         )
-                 else:
-                     # For newly created payments with 'from_business_credit'
-                     BusinessCreditLog.objects.create(
-                        business=instance.related_business,
-                        action='withdraw',
-                        amount=instance.amount,
-                        remarks=f'Payment {instance.id} using business credit',
-                        created_by=instance.created_by
-                     )
-
-
+    # Handle business credit transfers and account updates
+    if instance.header == 'business_credit' and instance.related_business:
+        if created:
+            # New payment with business credit
+            _handle_business_credit_payment(instance, created=True)
         else:
-            # Other payment methods: update account directly
-            if created:
-                # New payment: update account based on action
-                if instance.action == 'deposit':
-                    instance.related_account.current_amount += instance.amount
-                elif instance.action == 'withdraw':
-                    instance.related_account.current_amount -= instance.amount
-                instance.related_account.save()
-            else:
-                # Existing payment: check if amount, action, or related_account changed
-                amount_changed = instance.amount != instance._original_amount
-                action_changed = instance.action != instance._original_action
-                account_changed = instance.related_account != instance._original_related_account
-
-                if amount_changed or action_changed or account_changed:
-                    # Revert previous impact on the original account if account changed or action/amount changed
-                    if instance._original_related_account:
-                        if instance._original_action == 'deposit':
-                            instance._original_related_account.current_amount -= instance._original_amount
-                        elif instance._original_action == 'withdraw':
-                            instance._original_related_account.current_amount += instance._original_amount
-                        instance._original_related_account.save()
-
-                    # Apply new impact on the current account
-                    if instance.action == 'deposit':
-                        instance.related_account.current_amount += instance.amount
-                    elif instance.action == 'withdraw':
-                        instance.related_account.current_amount -= instance.amount
-                    instance.related_account.save()
+            # Updated payment - handle changes
+            _handle_business_credit_payment_update(instance)
+    
+    elif instance.related_account and instance.header != 'business_credit':
+        # Handle regular account payments (non-business credit)
+        if created:
+            _update_account_balance(instance.related_account, instance.action, instance.amount)
+        else:
+            _handle_regular_payment_update(instance)
 
     # Save the related objects to trigger their post_save signals
     if instance.purchase_bill:
@@ -238,3 +210,218 @@ def post_save_handler_payment(sender, instance, created, **kwargs):
         instance.invoice.save()
     if instance.expense:
         instance.expense.save()
+
+
+def _handle_business_credit_payment(instance, created=True):
+    """Handle business credit payment creation according to business requirements"""
+    # Check if any statements are attached
+    has_statements = bool(instance.invoice or instance.purchase_bill or instance.expense)
+    
+    if not has_statements:
+        # Condition 1: No statements attached - both related_business and related_account needed
+        if instance.related_account:
+            if instance.action == 'deposit':
+                # Add to business current amount and add to attached_account current amount
+                _update_business_balance(instance.related_business, 'deposit', instance.amount)
+                _update_account_balance(instance.related_account, 'deposit', instance.amount)
+            elif instance.action == 'withdraw':
+                # Subtract from business current amount and subtract from attached_account current amount
+                _update_business_balance(instance.related_business, 'withdraw', instance.amount)
+                _update_account_balance(instance.related_account, 'withdraw', instance.amount)
+            
+            # Create business credit log
+            _create_business_credit_log(instance)
+    else:
+        # Condition 2: Statements attached - handle based on statement type
+        if instance.purchase_bill:
+            # Purchase bill: add to business credit
+            _update_business_balance(instance.related_business, 'deposit', instance.amount)
+        elif instance.invoice:
+            # Invoice pay: subtract from business credit
+            _update_business_balance(instance.related_business, 'withdraw', instance.amount)
+        elif instance.expense:
+            # Expense: add to current amount
+            _update_business_balance(instance.related_business, 'deposit', instance.amount)
+        
+        # Create business credit log
+        _create_business_credit_log(instance)
+
+
+def _handle_business_credit_payment_update(instance):
+    """Handle updates to business credit payments"""
+    # Check what changed
+    amount_changed = hasattr(instance, '_original_amount') and instance.amount != instance._original_amount
+    action_changed = hasattr(instance, '_original_action') and instance.action != instance._original_action
+    business_changed = hasattr(instance, '_original_related_business') and instance.related_business != instance._original_related_business
+    account_changed = hasattr(instance, '_original_related_account') and instance.related_account != instance._original_related_account
+    header_changed = hasattr(instance, '_original_header') and instance.header != instance._original_header
+    
+    if amount_changed or action_changed or business_changed or account_changed or header_changed:
+        # Revert the original transaction
+        if hasattr(instance, '_original_header') and instance._original_header == 'business_credit':
+            _revert_business_credit_payment(instance)
+        elif hasattr(instance, '_original_related_account') and instance._original_related_account:
+            _revert_account_payment(instance)
+        
+        # Apply the new transaction
+        if instance.header == 'business_credit':
+            _handle_business_credit_payment(instance, created=False)
+        elif instance.related_account:
+            _update_account_balance(instance.related_account, instance.action, instance.amount)
+
+
+def _revert_business_credit_payment(instance):
+    """Revert a business credit payment"""
+    if hasattr(instance, '_original_action') and hasattr(instance, '_original_amount'):
+        original_action = instance._original_action
+        original_amount = instance._original_amount
+        original_business = getattr(instance, '_original_related_business', None)
+        original_account = getattr(instance, '_original_related_account', None)
+        
+        # Check if original payment had statements
+        has_original_statements = bool(instance.invoice or instance.purchase_bill or instance.expense)
+        
+        if original_business and original_amount:
+            if not has_original_statements and original_account:
+                # Original was without statements - reverse both business and account
+                if original_action == 'deposit':
+                    reverse_business_action = 'withdraw'  # Reverse deposit with withdraw
+                    reverse_account_action = 'withdraw'   # Reverse deposit with withdraw
+                else:  # withdraw
+                    reverse_business_action = 'deposit'   # Reverse withdraw with deposit
+                    reverse_account_action = 'deposit'    # Reverse withdraw with deposit
+                
+                _update_business_balance(original_business, reverse_business_action, original_amount)
+                _update_account_balance(original_account, reverse_account_action, original_amount)
+            else:
+                # Original had statements - reverse business balance based on statement type
+                if instance.purchase_bill:
+                    reverse_business_action = 'withdraw'  # Reverse deposit
+                elif instance.invoice:
+                    reverse_business_action = 'deposit'   # Reverse withdraw
+                elif instance.expense:
+                    reverse_business_action = 'withdraw'  # Reverse deposit
+                else:
+                    # Fallback to opposite of original action
+                    reverse_business_action = 'withdraw' if original_action == 'deposit' else 'deposit'
+                
+                _update_business_balance(original_business, reverse_business_action, original_amount)
+
+
+def _revert_account_payment(instance):
+    """Revert a regular account payment"""
+    if hasattr(instance, '_original_action') and hasattr(instance, '_original_amount'):
+        original_action = instance._original_action
+        original_amount = instance._original_amount
+        original_account = getattr(instance, '_original_related_account', None)
+        
+        if original_account and original_amount:
+            # Reverse the account balance
+            if original_action == 'deposit':
+                reverse_action = 'withdraw'
+            else:  # withdraw
+                reverse_action = 'deposit'
+            
+            _update_account_balance(original_account, reverse_action, original_amount)
+
+
+def _handle_regular_payment_update(instance):
+    """Handle updates to regular (non-business credit) payments"""
+    amount_changed = hasattr(instance, '_original_amount') and instance.amount != instance._original_amount
+    action_changed = hasattr(instance, '_original_action') and instance.action != instance._original_action
+    account_changed = hasattr(instance, '_original_related_account') and instance.related_account != instance._original_related_account
+    
+    if amount_changed or action_changed or account_changed:
+        # Revert original impact
+        _revert_account_payment(instance)
+        
+        # Apply new impact
+        _update_account_balance(instance.related_account, instance.action, instance.amount)
+
+
+def _update_account_balance(account, action, amount):
+    """Update account balance based on action"""
+    if action == 'deposit':
+        account.current_amount += amount
+    elif action == 'withdraw':
+        account.current_amount -= amount
+    account.save()
+
+
+def _update_business_balance(business, action, amount):
+    """Update business balance based on action"""
+    if action == 'deposit':
+        business.current_amount += amount
+    elif action == 'withdraw':
+        business.current_amount -= amount
+    business.save()
+
+
+def _create_business_credit_log(payment_instance):
+    """Create a business credit log entry for the payment"""
+    # Determine the action for the business credit log based on payment context
+    has_statements = bool(payment_instance.invoice or payment_instance.purchase_bill or payment_instance.expense)
+    
+    if not has_statements:
+        # No statements - use the payment action directly
+        log_action = payment_instance.action
+    else:
+        # With statements - determine action based on statement type
+        if payment_instance.purchase_bill:
+            log_action = 'deposit'  # Purchase bill adds to business credit
+        elif payment_instance.invoice:
+            log_action = 'withdraw'  # Invoice payment subtracts from business credit
+        elif payment_instance.expense:
+            log_action = 'deposit'  # Expense adds to current amount
+        else:
+            log_action = payment_instance.action
+    
+    BusinessCreditLog.objects.create(
+        business=payment_instance.related_business,
+        action=log_action,
+        amount=payment_instance.amount,
+        remarks=f"Payment #{payment_instance.id} - {payment_instance.remarks or 'No remarks'}",
+        created_by=payment_instance.created_by
+    )
+
+
+@receiver(models.signals.post_delete, sender=Payment)
+def post_delete_handler_payment(sender, instance, **kwargs):
+    """Handle payment deletion by reversing its effects"""
+    if instance.header == 'business_credit' and instance.related_business:
+        # Reverse business credit payment
+        has_statements = bool(instance.invoice or instance.purchase_bill or instance.expense)
+        
+        if not has_statements and instance.related_account:
+            # No statements - reverse both business and account
+            if instance.action == 'deposit':
+                reverse_business_action = 'withdraw'
+                reverse_account_action = 'withdraw'
+            else:  # withdraw
+                reverse_business_action = 'deposit'
+                reverse_account_action = 'deposit'
+            
+            _update_business_balance(instance.related_business, reverse_business_action, instance.amount)
+            _update_account_balance(instance.related_account, reverse_account_action, instance.amount)
+        else:
+            # With statements - reverse business balance based on statement type
+            if instance.purchase_bill:
+                reverse_business_action = 'withdraw'  # Reverse deposit
+            elif instance.invoice:
+                reverse_business_action = 'deposit'   # Reverse withdraw
+            elif instance.expense:
+                reverse_business_action = 'withdraw'  # Reverse deposit
+            else:
+                # Fallback
+                reverse_business_action = 'withdraw' if instance.action == 'deposit' else 'deposit'
+            
+            _update_business_balance(instance.related_business, reverse_business_action, instance.amount)
+    
+    elif instance.related_account and instance.header != 'business_credit':
+        # Reverse regular account payment
+        if instance.action == 'deposit':
+            reverse_action = 'withdraw'
+        else:  # withdraw
+            reverse_action = 'deposit'
+        
+        _update_account_balance(instance.related_account, reverse_action, instance.amount)

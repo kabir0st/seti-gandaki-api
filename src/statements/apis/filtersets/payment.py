@@ -1,8 +1,9 @@
 import django_filters
-from statements.models.payments import Payment
+from statements.models.payments import Payment, Account
 from statements.models.invoice.invoice import Invoice
 from statements.models.purchase_invoice import PurchaseBill
 from statements.models.expense import Expense
+from statements.models.business import Business
 
 
 class PaymentFilterSet(django_filters.FilterSet):
@@ -29,6 +30,21 @@ class PaymentFilterSet(django_filters.FilterSet):
     min_amount = django_filters.NumberFilter(field_name="amount", lookup_expr='gte')
     max_amount = django_filters.NumberFilter(field_name="amount", lookup_expr='lte')
     is_refunded = django_filters.BooleanFilter(field_name='is_refunded')
+    related_account = django_filters.ModelChoiceFilter(
+        queryset=Account.objects.all(),
+        field_name='related_account',
+        label='Related Account'
+    )
+    related_business = django_filters.ModelChoiceFilter(
+        queryset=Business.objects.all(),
+        field_name='related_business',
+        label='Related Business'
+    )
+    action = django_filters.ChoiceFilter(
+        choices=Payment.ACTION_CHOICES,
+        field_name='action',
+        label='Action (withdraw/deposit)'
+    )
 
     class Meta:
         model = Payment
@@ -41,6 +57,9 @@ class PaymentFilterSet(django_filters.FilterSet):
             'min_amount',
             'max_amount',
             'is_refunded',
+            'related_account',
+            'related_business',
+            'action',
             'created_at', # For date range filtering
             'updated_at', # For date range filtering
         ]

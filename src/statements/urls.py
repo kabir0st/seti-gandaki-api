@@ -1,4 +1,3 @@
-from statements.apis.business_credit_log import BusinessCreditLogAPI
 from .apis.cashcounter_apis import CashCounterLogViewSet, CashCounterViewSet
 from django.urls import path, include
 from .apis.purchase_bills import PurchaseBillViewSet, PurchaseItemViewSet, PurchasedItemStatViewSet
@@ -13,6 +12,7 @@ from .apis.settings import StatementSettingsAPIView
 from .apis.expense import ExpenseCategoryViewSet, ExpenseViewSet, ExpenseItemViewSet # Keep this
 from .apis.expense_items import ExpensedItemStatViewSet # New import for expense stats
 from .apis.payment import PaymentViewSet # Added import
+from .apis.account import AccountViewSet # Added import
 from rest_framework_nested.routers import SimpleRouter, NestedSimpleRouter
 from statements.apis.statistics import StatementStatisticsView
 
@@ -31,12 +31,12 @@ router.register('invoices', InvoiceViewSet, basename='Invoice')
 
 router.register('expenses', ExpenseViewSet, basename='Expense')
 router.register('payments', PaymentViewSet, basename='Payment')
+router.register('accounts', AccountViewSet, basename='Account')
 router.register('purchase-item-stats', PurchasedItemStatViewSet, basename='PurchasedItemStat')
 router.register('invoiced-item-stats', InvoicedItemStatViewSet, basename='InvoicedItemStat')
 router.register('expensed-item-stats', ExpensedItemStatViewSet, basename='ExpensedItemStat')
 router.register('cash-counters', CashCounterViewSet, basename='CashCounter')
 router.register('cash-counter-logs', CashCounterLogViewSet, basename='CashCounterLog')
-router.register('business-credit-logs', BusinessCreditLogAPI, basename='BusinessCreditLog') # Added router
 
 purchase_bills_router = NestedSimpleRouter(router,
                                            'purchase-bills',
