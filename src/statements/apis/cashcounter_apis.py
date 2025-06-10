@@ -7,7 +7,7 @@ from statements.apis.filtersets.cashcounter import CashCounterFilterSet
 from statements.apis.filtersets.cashcounter_log import CashCounterLogFilterSet
 from statements.models import CashCounter
 from statements.models.cashcounter_log import CashCounterLog
-from statements.serializers import CashCounterLogSerializer, CashCounterSerializer
+from statements.serializers import CashCounterSerializer, CashCounterLogSerializer
 
 class CashCounterViewSet(DefaultViewSet):
     """

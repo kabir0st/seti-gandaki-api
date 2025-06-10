@@ -9,8 +9,7 @@ from decimal import Decimal
 class Business(models.Model):
     name = models.CharField(_("Business Name"), max_length=255)
     registration_number = models.CharField(_("Registration Number"),
-                                           max_length=100,
-                                           unique=True,
+                                           max_length=255,
                                            blank=True,
                                            null=True)
     contact_person = models.CharField(_("Contact Person"),
@@ -31,7 +30,8 @@ class Business(models.Model):
     current_amount = models.DecimalField(default=Decimal('0.00'),
                                        max_digits=60,
                                        decimal_places=2,
-                                       verbose_name=_("Current Amount"))
+                                       verbose_name=_("Current Amount"),
+                                       editable=False)
     
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated At"), auto_now=True)

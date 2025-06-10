@@ -1,3 +1,12 @@
+from rest_framework import serializers
+
+from statements.models.business import Business
+from statements.models.business_credit_log import BusinessCreditLog
+from statements.models.cashcounter import CashCounter
+from statements.models.cashcounter_log import CashCounterLog
+
+
+
 import datetime
 from django.utils import timezone
 from rest_framework import serializers
@@ -16,6 +25,30 @@ from .models.settings import StatementSettings
 from .models.expense import ExpenseCategory, Expense, ExpenseItem
 from .models.payments import Payment
 
+
+
+class BusinessSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Business
+        fields = '__all__'
+
+
+class BusinessCreditLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusinessCreditLog
+        fields = '__all__'
+
+
+class CashCounterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CashCounter
+        fields = '__all__'
+
+
+class CashCounterLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CashCounterLog
+        fields = '__all__'
 
 
 # Serializer for Business model

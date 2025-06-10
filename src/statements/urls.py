@@ -1,3 +1,4 @@
+from statements.apis.business_credit_log import BusinessCreditLogAPI
 from .apis.cashcounter_apis import CashCounterLogViewSet, CashCounterViewSet
 from django.urls import path, include
 from .apis.purchase_bills import PurchaseBillViewSet, PurchaseItemViewSet, PurchasedItemStatViewSet
@@ -35,6 +36,7 @@ router.register('invoiced-item-stats', InvoicedItemStatViewSet, basename='Invoic
 router.register('expensed-item-stats', ExpensedItemStatViewSet, basename='ExpensedItemStat')
 router.register('cash-counters', CashCounterViewSet, basename='CashCounter')
 router.register('cash-counter-logs', CashCounterLogViewSet, basename='CashCounterLog')
+router.register('business-credit-logs', BusinessCreditLogAPI, basename='BusinessCreditLog') # Added router
 
 purchase_bills_router = NestedSimpleRouter(router,
                                            'purchase-bills',
