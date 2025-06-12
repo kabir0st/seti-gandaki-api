@@ -276,8 +276,13 @@ def post_save_handler_payment(sender, instance, created, **kwargs):
     # For expense, there is no direct link to Business in the current schema,
     # so related_business remains None.
 
+    # Only auto-assign related_business if there are linked statements
+    # Preserve explicitly set related_business for manual payments
+    has_statements = bool(instance.invoice or instance.purchase_bill or instance.expense)
+    
     # Check if related_business has changed to avoid infinite recursion
-    if instance.related_business != related_business:
+    # Only update if we have statements that should determine the business
+    if has_statements and instance.related_business != related_business:
         instance.related_business = related_business
         # Disconnect the signal to prevent recursion during the save
         models.signals.post_save.disconnect(post_save_handler_payment, sender=Payment)
