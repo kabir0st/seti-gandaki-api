@@ -11,4 +11,4 @@ class UserFilterSet(ExcludeFilterSet):
     class Meta:
         model = UserBase
         exclude = ('profile_image', 'groups', 'user_permissions',
-                   'is_superuser')
+                   'is_superuser', 'front_permission_groups')
