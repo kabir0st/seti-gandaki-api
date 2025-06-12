@@ -1,13 +1,14 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 
+from core.utils.viewsets import DefaultViewSet
 from hrm.models.salary import SalaryDisbursement
 from hrm.serializers import SalaryDisbursementSerializer
 from hrm.apis.filtersets.salary import SalaryDisbursementFilter
 from core.utils.permissions import IsStaffOrReadOnly # Corrected import
 
 
-class SalaryDisbursementViewSet(viewsets.ModelViewSet):
+class SalaryDisbursementViewSet(DefaultViewSet):
     queryset = SalaryDisbursement.objects.select_related('staff', 'created_by').all()
     serializer_class = SalaryDisbursementSerializer
     permission_classes = [IsAuthenticated, IsStaffOrReadOnly] # Corrected permission class

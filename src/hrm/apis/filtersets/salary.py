@@ -3,7 +3,7 @@ from hrm.models.salary import SalaryDisbursement
 
 
 class SalaryDisbursementFilter(django_filters.FilterSet):
-    staff = django_filters.CharFilter(field_name='staff__name', lookup_expr='icontains', label='Staff Name')
+    staff_name = django_filters.CharFilter(field_name='staff__name', lookup_expr='icontains', label='Staff Name')
     from_date = django_filters.DateFilter(field_name='from_date', lookup_expr='gte', label='From Date (YYYY-MM-DD)')
     to_date = django_filters.DateFilter(field_name='to_date', lookup_expr='lte', label='To Date (YYYY-MM-DD)')
     month = django_filters.NumberFilter(field_name='from_date__month', label='Month (1-12)')
@@ -17,7 +17,7 @@ class SalaryDisbursementFilter(django_filters.FilterSet):
     class Meta:
         model = SalaryDisbursement
         fields = [
-            'staff', 'from_date', 'to_date', 'month', 'year',
+            'staff_name', 'staff', 'from_date', 'to_date', 'month', 'year',
             'min_amount', 'max_amount', 'created_by',
             'created_at_after', 'created_at_before'
         ]
