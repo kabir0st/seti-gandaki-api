@@ -25,7 +25,7 @@ class RegisterUserBaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserBase
         fields = ('email', 'password', 'given_name', 'family_name',
-                  'phone_number', 'profile_image', 'is_staff')
+                  'phone_number', 'profile_image', 'is_staff','front_permission_groups')
 
         extra_kwargs = {
             'is_active': {
@@ -74,7 +74,7 @@ class MiniUserBaseSerializer(serializers.ModelSerializer):
         model = UserBase
         fields = ('uuid', 'name', 'id', 'given_name', 'family_name',
                   'phone_number', 'created_at', 'updated_at', 'is_staff',
-                  'is_active', 'properties', 'profile_image')
+                  'is_active', 'properties', 'profile_image','front_permission_groups')
 
     def get_name(self, obj):
         return f"{obj.given_name} {obj.family_name}"

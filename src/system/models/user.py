@@ -11,7 +11,7 @@ from django.dispatch import receiver
 from django.forms import ValidationError
 from django.utils import timezone
 
-from core.utils.functions import limit_size
+from core.utils.functions import default_array, limit_size
 
 
 class UserbaseManager(BaseUserManager):
@@ -66,6 +66,7 @@ class UserBase(AbstractBaseUser, PermissionsMixin):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_staff = models.BooleanField(default=True)
+    front_permission_groups = models.JSONField(default=default_array, null=True, blank=True)
     USERNAME_FIELD = "phone_number"
     REQUIRED_FIELDS = []
     objects = UserbaseManager()
