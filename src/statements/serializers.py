@@ -316,13 +316,19 @@ class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = '__all__'
-        read_only_fields = ('created_at', 'updated_at', 'payment_for')
+        read_only_fields = ('created_at', 'updated_at', 'payment_for', 'is_refunded')
         extra_kwargs = {
             'invoice': {'allow_null': True, 'required': False},
             'purchase_bill': {'allow_null': True, 'required': False},
             'expense': {'allow_null': True, 'required': False},
-            'created_by': {'allow_null': True, 'required': False},
+            'created_by': {'allow_null': True, 'required': False, 'read_only': True},
         }
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user') and request.user.is_authenticated:
+            validated_data['created_by'] = request.user
+        return super().create(validated_data)
 
     def validate(self, data):
         related_objects = ['invoice', 'purchase_bill', 'expense']

@@ -44,3 +44,59 @@ class Business(models.Model):
 
     def __str__(self):
         return self.name
+    
+    def reconcile_from_payments(self):
+        """
+        Reconcile business current_amount based on all related payments
+        Returns the calculated amount and updates the business if different
+        """
+        from statements.models.payments import Payment
+        from django.db.models import Sum, Q
+        
+        # Get all non-refunded payments related to this business
+        business_credit_payments = Payment.objects.filter(
+            related_business=self,
+            header='business_credit',
+            is_refunded=False
+        )
+        
+        calculated_amount = Decimal('0.00')
+        
+        for payment in business_credit_payments:
+            has_statements = bool(payment.invoice or payment.purchase_bill or payment.expense)
+            
+            if not has_statements:
+                # No statements - use payment action directly
+                if payment.action == 'deposit':
+                    calculated_amount += payment.amount
+                elif payment.action == 'withdraw':
+                    calculated_amount -= payment.amount
+            else:
+                # With statements - handle based on statement type
+                if payment.purchase_bill:
+                    # Purchase bill: add to business credit
+                    calculated_amount += payment.amount
+                elif payment.invoice:
+                    # Invoice pay: subtract from business credit
+                    calculated_amount -= payment.amount
+                elif payment.expense:
+                    # Expense: add to current amount
+                    calculated_amount += payment.amount
+        
+        # Update if different
+        if self.current_amount != calculated_amount:
+            old_amount = self.current_amount
+            self.current_amount = calculated_amount
+            self.save(update_fields=['current_amount'])
+            return {
+                'reconciled': True,
+                'old_amount': old_amount,
+                'new_amount': calculated_amount,
+                'difference': calculated_amount - old_amount
+            }
+        
+        return {
+            'reconciled': False,
+            'current_amount': calculated_amount,
+            'message': 'Amount already correct'
+        }

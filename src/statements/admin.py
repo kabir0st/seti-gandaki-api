@@ -244,9 +244,11 @@ class StaffAdmin(ModelAdmin):
 class PaymentAdmin(ModelAdmin):
     list_display = (
         'id',
-        'created_by',
+        'action',
         'amount',
-        'is_refunded',
+        'header',
+        'related_business__name',
+        'related_account__name',
         'created_at',
     )
     list_filter = ( 'is_refunded', 'created_at', 'invoice', 'purchase_bill', 'expense')

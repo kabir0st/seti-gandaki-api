@@ -18,7 +18,7 @@ def image_path(instance, filename):
 
 class Account(DefaultModel):
     name = models.CharField(max_length=255, unique=True)
-    account_number = models.CharField(max_length=50, unique=True)
+    account_number = models.CharField(max_length=50, blank=True, null=True)
     bank_name = models.CharField(max_length=255, blank=True, null=True)
     branch_name = models.CharField(max_length=255, blank=True, null=True)
     current_amount = models.DecimalField(default=Decimal('0.00'),
@@ -28,6 +28,53 @@ class Account(DefaultModel):
 
     def __str__(self):
         return f'{self.name} ({self.account_number})'
+    
+    def reconcile_from_payments(self):
+        """
+        Reconcile account current_amount based on all related payments
+        Returns the calculated amount and updates the account if different
+        """
+        calculated_amount = Decimal('0.00')
+        
+        # Get all non-refunded payments related to this account
+        account_payments = Payment.objects.filter(
+            related_account=self,
+            is_refunded=False
+        )
+        
+        for payment in account_payments:
+            if payment.header == 'business_credit':
+                # Business credit payments only affect account if no statements attached
+                has_statements = bool(payment.invoice or payment.purchase_bill or payment.expense)
+                if not has_statements:
+                    if payment.action == 'deposit':
+                        calculated_amount += payment.amount
+                    elif payment.action == 'withdraw':
+                        calculated_amount -= payment.amount
+            else:
+                # Regular payments (non-business credit)
+                if payment.action == 'deposit':
+                    calculated_amount += payment.amount
+                elif payment.action == 'withdraw':
+                    calculated_amount -= payment.amount
+        
+        # Update if different
+        if self.current_amount != calculated_amount:
+            old_amount = self.current_amount
+            self.current_amount = calculated_amount
+            self.save(update_fields=['current_amount'])
+            return {
+                'reconciled': True,
+                'old_amount': old_amount,
+                'new_amount': calculated_amount,
+                'difference': calculated_amount - old_amount
+            }
+        
+        return {
+            'reconciled': False,
+            'current_amount': calculated_amount,
+            'message': 'Amount already correct'
+        }
     
     class Meta:
         verbose_name_plural = "Accounts"
@@ -102,32 +149,49 @@ class Payment(DefaultModel):
     def clean(self):
         from django.core.exceptions import ValidationError
 
+        # Prevent modifications to existing payments except for refunding
+        if self.pk:
+            original = Payment.objects.get(pk=self.pk)
+            if original.is_refunded:
+                raise ValidationError("Cannot modify a refunded payment.")
+            
+            # Only allow changing is_refunded from False to True
+            if original.is_refunded == False and self.is_refunded == False:
+                # Prevent changing other fields if payment exists and is not being refunded
+                fields_to_check = ['amount', 'header', 'invoice', 'purchase_bill', 'expense',
+                                 'related_business', 'related_account', 'action']
+                for field in fields_to_check:
+                    if getattr(self, field) != getattr(original, field):
+                        raise ValidationError(f"Cannot modify {field} of an existing payment. Payment can only be refunded.")
+
         if self.header == 'business_credit':
             if not self.related_business:
                 raise ValidationError("Related business must be attached when payment method is 'Business Credit'.")
             
-            # Check if any statements are attached
             has_statements = bool(self.invoice or self.purchase_bill or self.expense)
             
             if not has_statements:
-                # No statements attached - both business and account required
+                # No statements attached - both business and account needed
                 if not self.related_account:
                     raise ValidationError("Related account must be attached when no statements are linked to business credit payment.")
                 
-                # Validation based on action type
-                if self.action == 'deposit':
-                    # Check if business has enough credit
-                    if self.related_business.current_amount < self.amount:
-                        raise ValidationError(f"Business '{self.related_business.name}' does not have enough credit. Available: {self.related_business.current_amount}, Required: {self.amount}")
-                
-                elif self.action == 'withdraw':
-                    # Check if account has enough balance
+                # Check balances for withdraw operations
+                if self.action == 'withdraw':
                     if self.related_account.current_amount < self.amount:
-                        raise ValidationError(f"Account '{self.related_account.name}' does not have enough balance. Available: {self.related_account.current_amount}, Required: {self.amount}")
+                        raise ValidationError(f"Account '{self.related_account.name}' does not have enough balance. "
+                                            f"Available: {self.related_account.current_amount}, Required: {self.amount}")
+                    if self.related_business.current_amount < self.amount:
+                        raise ValidationError(f"Business '{self.related_business.name}' does not have enough credit balance. "
+                                            f"Available: {self.related_business.current_amount}, Required: {self.amount}")
             else:
-                # Statements attached - account should be null
+                # Statements attached - account must be null
                 if self.related_account:
                     raise ValidationError("Related account must be null when statements are attached to business credit payment.")
+                
+                # Check business balance for invoice payments (withdrawals)
+                if self.invoice and self.related_business.current_amount < self.amount:
+                    raise ValidationError(f"Business '{self.related_business.name}' does not have enough credit balance for invoice payment. "
+                                        f"Available: {self.related_business.current_amount}, Required: {self.amount}")
 
     @property
     def payment_for(self):
@@ -154,6 +218,30 @@ class Payment(DefaultModel):
             }
         return 'Manual'
 
+    def refund(self):
+        """
+        Refund the payment by reverting its effects and updating is_refunded
+        """
+        from django.core.exceptions import ValidationError
+        
+        if self.is_refunded:
+            raise ValidationError("Payment is already refunded.")
+        
+        # Revert the payment effects
+        self._revert_payment_effects()
+        
+        # Update is_refunded
+        self.is_refunded = True
+        self.save(update_fields=['is_refunded'])
+        
+        return True
+
+    def _revert_payment_effects(self):
+        """
+        Revert the effects of this payment on accounts and business balances
+        """
+        _revert_payment_balance_effects(self)
+
 
 
 @receiver(models.signals.pre_save, sender=Payment)
@@ -165,10 +253,20 @@ def pre_save_handler_payment(sender, instance, **kwargs):
         instance._original_related_account = original_instance.related_account
         instance._original_related_business = original_instance.related_business
         instance._original_header = original_instance.header
+        instance._original_is_refunded = original_instance.is_refunded
 
 
 @receiver(models.signals.post_save, sender=Payment)
 def post_save_handler_payment(sender, instance, created, **kwargs):
+    # Skip processing if payment is refunded (unless it's being refunded now)
+    if instance.is_refunded and not (hasattr(instance, '_original_is_refunded') and instance._original_is_refunded == False):
+        return
+    
+    # Handle refund process
+    if hasattr(instance, '_original_is_refunded') and instance._original_is_refunded == False and instance.is_refunded == True:
+        # Payment is being refunded - effects already reverted in refund() method
+        return
+    
     # Determine related business based on the linked object
     related_business = None
     if instance.invoice:
@@ -187,21 +285,22 @@ def post_save_handler_payment(sender, instance, created, **kwargs):
         # Reconnect the signal
         models.signals.post_save.connect(post_save_handler_payment, sender=Payment)
 
-    # Handle business credit transfers and account updates
-    if instance.header == 'business_credit' and instance.related_business:
-        if created:
-            # New payment with business credit
-            _handle_business_credit_payment(instance, created=True)
-        else:
-            # Updated payment - handle changes
-            _handle_business_credit_payment_update(instance)
-    
-    elif instance.related_account and instance.header != 'business_credit':
-        # Handle regular account payments (non-business credit)
-        if created:
-            _update_account_balance(instance.related_account, instance.action, instance.amount)
-        else:
-            _handle_regular_payment_update(instance)
+    # Handle business credit transfers and account updates only for non-refunded payments
+    if not instance.is_refunded:
+        if instance.header == 'business_credit' and instance.related_business:
+            if created:
+                # New payment with business credit
+                _handle_business_credit_payment(instance, created=True)
+            else:
+                # Updated payment - handle changes
+                _handle_business_credit_payment_update(instance)
+        
+        elif instance.related_account and instance.header != 'business_credit':
+            # Handle regular account payments (non-business credit)
+            if created:
+                _update_account_balance(instance.related_account, instance.action, instance.amount)
+            else:
+                _handle_regular_payment_update(instance)
 
     # Save the related objects to trigger their post_save signals
     if instance.purchase_bill:
@@ -388,40 +487,89 @@ def _create_business_credit_log(payment_instance):
 @receiver(models.signals.post_delete, sender=Payment)
 def post_delete_handler_payment(sender, instance, **kwargs):
     """Handle payment deletion by reversing its effects"""
-    if instance.header == 'business_credit' and instance.related_business:
-        # Reverse business credit payment
-        has_statements = bool(instance.invoice or instance.purchase_bill or instance.expense)
+    _revert_payment_balance_effects(instance)
+
+
+def _revert_payment_balance_effects(payment_instance):
+    """
+    Consolidated function to revert payment balance effects
+    Used by refund, delete, and update operations
+    """
+    if payment_instance.header == 'business_credit' and payment_instance.related_business:
+        # Revert business credit payment
+        has_statements = bool(payment_instance.invoice or payment_instance.purchase_bill or payment_instance.expense)
         
-        if not has_statements and instance.related_account:
+        if not has_statements and payment_instance.related_account:
             # No statements - reverse both business and account
-            if instance.action == 'deposit':
+            if payment_instance.action == 'deposit':
                 reverse_business_action = 'withdraw'
                 reverse_account_action = 'withdraw'
             else:  # withdraw
                 reverse_business_action = 'deposit'
                 reverse_account_action = 'deposit'
             
-            _update_business_balance(instance.related_business, reverse_business_action, instance.amount)
-            _update_account_balance(instance.related_account, reverse_account_action, instance.amount)
+            _update_business_balance(payment_instance.related_business, reverse_business_action, payment_instance.amount)
+            _update_account_balance(payment_instance.related_account, reverse_account_action, payment_instance.amount)
         else:
             # With statements - reverse business balance based on statement type
-            if instance.purchase_bill:
+            if payment_instance.purchase_bill:
                 reverse_business_action = 'withdraw'  # Reverse deposit
-            elif instance.invoice:
+            elif payment_instance.invoice:
                 reverse_business_action = 'deposit'   # Reverse withdraw
-            elif instance.expense:
+            elif payment_instance.expense:
                 reverse_business_action = 'withdraw'  # Reverse deposit
             else:
                 # Fallback
-                reverse_business_action = 'withdraw' if instance.action == 'deposit' else 'deposit'
+                reverse_business_action = 'withdraw' if payment_instance.action == 'deposit' else 'deposit'
             
-            _update_business_balance(instance.related_business, reverse_business_action, instance.amount)
+            _update_business_balance(payment_instance.related_business, reverse_business_action, payment_instance.amount)
     
-    elif instance.related_account and instance.header != 'business_credit':
+    elif payment_instance.related_account and payment_instance.header != 'business_credit':
         # Reverse regular account payment
-        if instance.action == 'deposit':
+        if payment_instance.action == 'deposit':
             reverse_action = 'withdraw'
         else:  # withdraw
             reverse_action = 'deposit'
         
-        _update_account_balance(instance.related_account, reverse_action, instance.amount)
+        _update_account_balance(payment_instance.related_account, reverse_action, payment_instance.amount)
+
+
+def get_payment_balance_impact(payment_instance):
+    """
+    Calculate the balance impact of a payment without applying it
+    Returns dict with business_impact and account_impact
+    """
+    business_impact = Decimal('0.00')
+    account_impact = Decimal('0.00')
+    
+    if payment_instance.header == 'business_credit' and payment_instance.related_business:
+        has_statements = bool(payment_instance.invoice or payment_instance.purchase_bill or payment_instance.expense)
+        
+        if not has_statements and payment_instance.related_account:
+            # No statements - both business and account affected
+            if payment_instance.action == 'deposit':
+                business_impact = payment_instance.amount
+                account_impact = payment_instance.amount
+            elif payment_instance.action == 'withdraw':
+                business_impact = -payment_instance.amount
+                account_impact = -payment_instance.amount
+        else:
+            # With statements - only business affected
+            if payment_instance.purchase_bill:
+                business_impact = payment_instance.amount  # Purchase bill adds to business credit
+            elif payment_instance.invoice:
+                business_impact = -payment_instance.amount  # Invoice pay subtracts from business credit
+            elif payment_instance.expense:
+                business_impact = payment_instance.amount  # Expense adds to current amount
+    
+    elif payment_instance.related_account and payment_instance.header != 'business_credit':
+        # Regular account payment
+        if payment_instance.action == 'deposit':
+            account_impact = payment_instance.amount
+        elif payment_instance.action == 'withdraw':
+            account_impact = -payment_instance.amount
+    
+    return {
+        'business_impact': business_impact,
+        'account_impact': account_impact
+    }
