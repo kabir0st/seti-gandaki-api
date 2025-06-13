@@ -59,19 +59,19 @@ class FuelTicketAdmin(ModelAdmin):
 
 @admin.register(Attendance)
 class AttendanceAdmin(ModelAdmin):
-    list_display = ('staff', 'date', 'check_in_time', 'check_out_time', 'status', 'created_at', 'updated_at')
+    list_display = ('staff', 'date', 'time', 'attendance_type', 'verification_method', 'created_at')
     search_fields = ('staff__name', 'staff__pan', 'date')
-    list_filter = ('status', 'date', 'created_at')
+    list_filter = ('attendance_type', 'verification_method', 'date', 'created_at')
     readonly_fields = ('created_at', 'updated_at')
     autocomplete_fields = ['staff']
     date_hierarchy = 'date'
 
     fieldsets = (
         (None, {
-            'fields': ('staff', 'date', 'status')
+            'fields': ('staff', 'date', 'time', 'attendance_type')
         }),
-        ('Timings', {
-            'fields': ('check_in_time', 'check_out_time')
+        ('Verification', {
+            'fields': ('verification_method',)
         }),
         ('Additional Information', {
             'fields': ('remarks',)

@@ -3,17 +3,26 @@ from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
 from statements.models.support import Staff
-from core.utils.models.abstract import DefaultModel # Changed TimeStampedModel to DefaultModel
-
-class AttendanceChoice(models.TextChoices):
-    PRESENT = "PRESENT", _("Present")
-    ABSENT = "ABSENT", _("Absent")
-    LEAVE = "LEAVE", _("On Leave")
-    HOLIDAY = "HOLIDAY", _("Holiday")
-    HALF_DAY = "HALF_DAY", _("Half Day")
+from core.utils.models.abstract import DefaultModel
 
 
-class Attendance(DefaultModel): # Changed TimeStampedModel to DefaultModel
+class AttendanceTypeChoice(models.TextChoices):
+    CHECK_IN = "CHECK_IN", _("Check In")
+    CHECK_OUT = "CHECK_OUT", _("Check Out")
+
+
+class VerificationChoice(models.TextChoices):
+    PASSWORD = "PASSWORD", _("Password")
+    FINGERPRINT = "FINGERPRINT", _("Fingerprint")
+    CARD = "CARD", _("Card")
+    FACE = "FACE", _("Face")
+    MANUAL = "MANUAL", _("Manual Entry")
+
+
+class Attendance(DefaultModel):
+    """
+    Simplified attendance model - each record represents a single check-in or check-out event
+    """
     staff = models.ForeignKey(
         Staff,
         on_delete=models.CASCADE,
@@ -21,21 +30,29 @@ class Attendance(DefaultModel): # Changed TimeStampedModel to DefaultModel
         verbose_name=_("Staff")
     )
     date = models.DateField(_("Date"), default=timezone.localdate)
-    check_in_time = models.TimeField(_("Check-in Time"), null=True, blank=True)
-    check_out_time = models.TimeField(_("Check-out Time"), null=True, blank=True)
-    status = models.CharField(
-        _("Status"),
+    time = models.TimeField(_("Time"), default=timezone.localtime)
+    attendance_type = models.CharField(
+        _("Type"),
         max_length=20,
-        choices=AttendanceChoice.choices,
-        default=AttendanceChoice.PRESENT
+        choices=AttendanceTypeChoice.choices,
+        default=AttendanceTypeChoice.CHECK_IN
+    )
+    verification_method = models.CharField(
+        _("Verification Method"),
+        max_length=20,
+        choices=VerificationChoice.choices,
+        default=VerificationChoice.MANUAL
     )
     remarks = models.TextField(_("Remarks"), blank=True, null=True)
 
     class Meta:
         verbose_name = _("Attendance")
         verbose_name_plural = _("Attendances")
-        unique_together = ('staff', 'date') # Each staff can only have one attendance record per day
-        ordering = ['-date', 'staff__name']
+        ordering = ['-date', '-time']
+        indexes = [
+            models.Index(fields=['staff', 'date']),
+            models.Index(fields=['date', 'attendance_type']),
+        ]
 
     def __str__(self):
-        return f"{self.staff.name} - {self.date} ({self.get_status_display()})"
+        return f"{self.staff.name} - {self.date} {self.time} ({self.get_attendance_type_display()})"

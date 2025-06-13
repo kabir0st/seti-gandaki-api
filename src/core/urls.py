@@ -9,7 +9,7 @@ from rest_framework import permissions
 from core.views import index
 
 # from .logics.index import dashboard, login_view
-
+from hrm.apis.device import heartbeat
 SchemaView = get_schema_view(
     openapi.Info(
         title="Seti Gandaki API",
@@ -29,6 +29,8 @@ urlpatterns = [
     path("docs/",
          SchemaView.with_ui('swagger', cache_timeout=0),
          name='schema-swagger-ui'),
+    path('iclock/cdata', heartbeat),
+    path('iclock/getrequest', heartbeat),
     path('', admin.site.urls),
 ]
 
