@@ -32,7 +32,8 @@ class Business(models.Model):
                                        decimal_places=2,
                                        verbose_name=_("Current Amount"),
                                        editable=False)
-    
+    is_customer = models.BooleanField(default=True)
+    is_vendor = models.BooleanField(default=True)
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
     
