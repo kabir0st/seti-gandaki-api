@@ -127,6 +127,7 @@ class PurchasedItemStatFilter(DefaultFilterSet):
 
 # ViewSet for PurchasedItemStat
 class PurchasedItemStatViewSet(DefaultViewSet):
+    queryset = PurchaseItem.objects.all()
     filterset_class = PurchasedItemStatFilter
     ordering_fields = ['item_name', 'average_price', 'last_bought_price', 'total_item_bought']
 
@@ -142,13 +143,8 @@ class PurchasedItemStatViewSet(DefaultViewSet):
     def get_queryset(self):
         queryset = PurchaseItem.objects.all() # Base queryset
 
-        # Apply filters from filterset_class. This is crucial.
-        # DefaultViewSet's list method usually handles this, but for custom get_queryset,
-        # ensure filters are applied if they are not already by the time this is called.
-        # If using self.filter_queryset(queryset) it should work.
-        # For clarity, let's assume filters are applied to `queryset` before this point
-        # or will be by `self.filter_queryset(queryset)` if called by `list()`.
-        queryset = self.filter_queryset(queryset)
+        # Filters are automatically applied by Django REST Framework
+        # No need to manually call self.filter_queryset() here as it causes recursion
         if self.request.query_params.get('auto_fill', '').lower() == 'true':
             # For auto_fill, we only need distinct item names
             # Filters (item name search, date range) should still apply to this
