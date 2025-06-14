@@ -1,19 +1,21 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter, OrderingFilter
-from django.db.models import Q
 import json
-import logging
 
 from hrm.models.attendance import Attendance
 from hrm.serializers import AttendanceSerializer, ManualAttendanceSerializer
 from core.utils.permissions import IsStaffOrReadOnly
 from core.utils.viewsets import DefaultViewSet
+import django_filters
 
-# Set up logging for ZKTeco device requests
-logger = logging.getLogger(__name__)
+class AttendanceFilter(django_filters.FilterSet):
+    created_at = django_filters.DateFromToRangeFilter()
+    updated_at = django_filters.DateFromToRangeFilter()
+
+    class Meta:
+        model = Attendance
+        fields = "__all__"
 
 class AttendanceViewSet(DefaultViewSet):
     """
@@ -23,17 +25,13 @@ class AttendanceViewSet(DefaultViewSet):
     queryset = Attendance.objects.select_related('staff').all()
     serializer_class = AttendanceSerializer
     permission_classes = [permissions.IsAuthenticated, IsStaffOrReadOnly]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = {
         'staff__id': ['exact'],
         'staff__name': ['icontains'],
         'date': ['exact', 'gte', 'lte', 'range'],
-        'status': ['exact', 'in'],
-        'source': ['exact', 'in'],
     }
     search_fields = ['staff__name', 'remarks']
-    ordering_fields = ['date', 'staff__name', 'status', 'source', 'created_at']
-    ordering = ['-date', 'staff__name']
+
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -129,10 +127,10 @@ class AttendanceViewSet(DefaultViewSet):
         """
         try:
             # Log the incoming request
-            logger.info("ZKTeco Pro K40 request received at deprecated webhook")
-            logger.info(f"Request headers: {dict(request.headers)}")
-            logger.info(f"Request data: {request.data}")
-            logger.info(f"Request body: {request.body}")
+            print("ZKTeco Pro K40 request received at deprecated webhook")
+            print(f"Request headers: {dict(request.headers)}")
+            print(f"Request data: {request.data}")
+            print(f"Request body: {request.body}")
             
             # Print to console for debugging
             print("=" * 50)
@@ -167,7 +165,7 @@ class AttendanceViewSet(DefaultViewSet):
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
-            logger.error(f"Error processing ZKTeco Pro K40 request: {str(e)}")
+            print(f"Error processing ZKTeco Pro K40 request: {str(e)}")
             print(f"Error processing ZKTeco Pro K40 request: {str(e)}")
             
             return Response({

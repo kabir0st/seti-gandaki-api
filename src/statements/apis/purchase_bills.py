@@ -148,7 +148,7 @@ class PurchasedItemStatViewSet(DefaultViewSet):
         # If using self.filter_queryset(queryset) it should work.
         # For clarity, let's assume filters are applied to `queryset` before this point
         # or will be by `self.filter_queryset(queryset)` if called by `list()`.
-
+        queryset = self.filter_queryset(queryset)
         if self.request.query_params.get('auto_fill', '').lower() == 'true':
             # For auto_fill, we only need distinct item names
             # Filters (item name search, date range) should still apply to this

@@ -33,7 +33,7 @@ class InvoicedItemStatViewSet(DefaultViewSet):
 
     def get_queryset(self):
         queryset = InvoiceItem.objects.all()
-
+        queryset = self.filter_queryset(queryset)
         if self.request.query_params.get('auto_fill', '').lower() == 'true':
             queryset = queryset.values('item_name').annotate(item_name_alias=F('item_name')).values('item_name_alias').distinct().order_by('item_name_alias').rename_field('item_name_alias', 'item_name')
             # The .values('item_name').distinct() is simpler if only 'item_name' is needed.
