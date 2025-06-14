@@ -23,26 +23,31 @@ class AccountFilterSet(django_filters.FilterSet):
         lookup_expr='icontains',
         label='Branch Name'
     )
+    account_for_header = django_filters.ChoiceFilter(
+        field_name='account_for_header',
+        choices=Account.HEADER_TYPES,
+        label='Account For Header'
+    )
     min_amount = django_filters.NumberFilter(
-        field_name="current_amount", 
+        field_name="current_amount",
         lookup_expr='gte',
         label='Minimum Amount'
     )
     max_amount = django_filters.NumberFilter(
-        field_name="current_amount", 
+        field_name="current_amount",
         lookup_expr='lte',
         label='Maximum Amount'
     )
     
     # Date range filtering
     created_after = django_filters.DateFilter(
-        field_name="created_at", 
-        lookup_expr='gte', 
+        field_name="created_at",
+        lookup_expr='gte',
         label='Created After (YYYY-MM-DD)'
     )
     created_before = django_filters.DateFilter(
-        field_name="created_at", 
-        lookup_expr='lte', 
+        field_name="created_at",
+        lookup_expr='lte',
         label='Created Before (YYYY-MM-DD)'
     )
 
@@ -53,6 +58,7 @@ class AccountFilterSet(django_filters.FilterSet):
             'account_number',
             'bank_name',
             'branch_name',
+            'account_for_header',
             'min_amount',
             'max_amount',
             'created_after',

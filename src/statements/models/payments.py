@@ -25,6 +25,14 @@ class Account(DefaultModel):
                                         max_digits=60,
                                         decimal_places=2,
                                         verbose_name="Current Amount")
+    
+    HEADER_TYPES = (('fonepay', 'Fonepay'),
+                            ('cash', 'Cash'), ('transfer',
+                                               'Transfer'), ('card', 'Card'))
+
+    account_for_header = models.CharField(max_length=20,
+                              choices=HEADER_TYPES,
+                              default='cash')
 
     def __str__(self):
         return f'{self.name} ({self.account_number})'
