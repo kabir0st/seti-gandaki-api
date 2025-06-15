@@ -1,17 +1,21 @@
 import json
 from decimal import Decimal
+from datetime import datetime
 
 from django.core.cache import cache
 from django.db.models import (CharField, FileField, ImageField, JSONField,
                               TextField, Value)
 from django.db.models.functions import Concat
+from django.http import HttpResponse
 from django_filters import (CharFilter, DateTimeFromToRangeFilter, FilterSet)
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.filters import SearchFilter
+from rest_framework.exceptions import APIException
 
-from core.utils.functions import (get_all_exportable_fields, get_or_set_cache,
+from core.utils.functions import (export_data, export_data_from_response, get_all_exportable_fields, get_or_set_cache,
                                   get_unique_queryset)
 
 EXCLUDE = [ImageField, FileField, TextField, JSONField]
@@ -96,36 +100,104 @@ class DefaultViewSet(ModelViewSet):
         except AttributeError:
             return []
 
-    # @action(methods=['GET'], detail=False)
-    # def export(self, request, *args, **kwargs):
-    #     start = int(request.GET.get('start', 0))
-    #     end = int(
-    #         request.GET['end']
-    #     ) if 'end' in request.GET and request.GET['end'] != 'None' else None
+    @action(methods=['GET'], detail=False)
+    def export(self, request, *args, **kwargs):
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        # Get export configuration from request parameters
+        human_readable_headers = request.GET.get('human_readable_headers', 'true').lower() == 'true'
+        auto_exclude_non_human_fields = request.GET.get('auto_exclude_non_human_fields', 'true').lower() == 'true'
+        
+        # Check if this is a view with custom logic (no direct model queryset)
+        # or if the view has a custom export_data method
+        if hasattr(self, 'export_data') and callable(getattr(self, 'export_data')):
+            # Use custom export_data method from the view
+            try:
+                data = self.export_data(request, *args, **kwargs)
+                view_name = self.__class__.__name__.replace('ViewSet', '').replace('View', '')
+                
+                # Generate document name
+                custom_name = request.GET.get('document_name', '')
+                if custom_name:
+                    document_name = f"{custom_name}_{timestamp}"
+                else:
+                    document_name = f"{view_name}_export_{timestamp}"
+                
+                # Export from response data
+                excel_file = export_data_from_response(data, document_name, human_readable_headers)
+                
+            except Exception as e:
+                raise APIException(f'Error in custom export: {str(e)}') from e
+                
+        else:
+            # Standard model-based export
+            start = int(request.GET.get('start', 0))
+            end = int(
+                request.GET['end']
+            ) if 'end' in request.GET and request.GET['end'] != 'None' else None
 
-    #     exclude = request.GET.get('exclude', [])
-    #     if exclude:
-    #         exclude = exclude.split(',')
-    #     include_relations = request.GET.get('include_relations', [])
-    #     if include_relations:
-    #         include_relations = include_relations.split(',')
-    #     try:
-    #         queryset = self.apply_filters(request)
-    #     except Exception as e:
-    #         raise APIException('There is a problem applying filters.') from e
-    #     document_name = request.GET.get('document_name',
-    #                                     queryset.model.__name__)
-    #     if document_name:
-    #         document_name = str(document_name).title()
-    #     model = f'{queryset.model._meta.app_label}.{queryset.model.__name__}'
-    #     response = {
-    #         'status':
-    #         True,
-    #         'document':
-    #         export_data(model, [item.id for item in queryset[start:end]],
-    #                     exclude, include_relations, document_name)
-    #     }
-    #     return Response(response)
+            exclude = request.GET.get('exclude', [])
+            if exclude:
+                exclude = exclude.split(',')
+            include_relations = request.GET.get('include_relations', [])
+            if include_relations:
+                include_relations = include_relations.split(',')
+            
+            try:
+                # Try to get data from list() method for views with custom logic
+                if not hasattr(self, 'queryset') or self.queryset is None:
+                    # This view doesn't have a direct queryset, use list() method
+                    list_response = self.list(request, *args, **kwargs)
+                    if hasattr(list_response, 'data'):
+                        data = list_response.data
+                        view_name = self.__class__.__name__.replace('ViewSet', '').replace('View', '')
+                        
+                        # Generate document name
+                        custom_name = request.GET.get('document_name', '')
+                        if custom_name:
+                            document_name = f"{custom_name}_{timestamp}"
+                        else:
+                            document_name = f"{view_name}_export_{timestamp}"
+                        
+                        # Export from response data
+                        excel_file = export_data_from_response(data, document_name, human_readable_headers)
+                    else:
+                        raise APIException('Unable to get data from view')
+                else:
+                    # Standard queryset-based export
+                    queryset = self.filter_queryset(self.get_queryset())
+                    
+                    # Generate document name based on model and timestamp
+                    model_name = queryset.model.__name__
+                    app_label = queryset.model._meta.app_label
+                    
+                    # Use custom document name if provided, otherwise generate one
+                    custom_name = request.GET.get('document_name', '')
+                    if custom_name:
+                        document_name = f"{custom_name}_{timestamp}"
+                    else:
+                        document_name = f"{app_label}_{model_name}_export_{timestamp}"
+                    
+                    model = f'{app_label}.{model_name}'
+                    
+                    # Get the Excel file as BytesIO object
+                    excel_file = export_data(
+                        model, [item.id for item in queryset[start:end]],
+                        exclude, include_relations, document_name,
+                        human_readable_headers, auto_exclude_non_human_fields
+                    )
+                    
+            except Exception as e:
+                raise APIException('There is a problem applying filters or getting data.') from e
+        
+        # Create HTTP response for file download
+        response = HttpResponse(
+            excel_file.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{document_name}.xlsx"'
+        
+        return response
 
     def filter_by_unique(self, queryset):
         return get_unique_queryset(queryset)

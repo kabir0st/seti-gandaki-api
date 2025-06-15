@@ -18,6 +18,16 @@ from django.utils.http import urlencode
 from django.utils.text import slugify
 from PIL import Image
 
+import os
+from copy import deepcopy
+from io import BytesIO
+
+import openpyxl
+import pandas as pd
+from django.apps import apps
+from django.db import  models
+from django.utils.text import slugify
+
 
 def convert_decimal_to_string(data):
     if isinstance(data, dict):
@@ -230,16 +240,131 @@ def export_data(model,
                 ids,
                 exclude_fields=None,
                 include_relations=None,
-                document_name=None):
+                document_name=None,
+                human_readable_headers=True,
+                auto_exclude_non_human_fields=True):
+    """
+    Enhanced export data function with human-readable headers and smart relationship handling
+    
+    Args:
+        model: Model string in format 'app.ModelName'
+        ids: List of object IDs to export
+        exclude_fields: List of field names to exclude
+        include_relations: List of relationship field names to include
+        document_name: Custom document name
+        human_readable_headers: Convert field names to human-readable format
+        auto_exclude_non_human_fields: Automatically exclude fields not suitable for human reading
+    """
     if exclude_fields is None:
         exclude_fields = []
     if include_relations is None:
         include_relations = []
-    # from users.models.misc import Document
-    # document = Document.objects.create(model=model, name=document_name)
-    # export_data_task.delay(document.id, ids, exclude_fields,
-    # include_relations)
-    return 1
+    
+    excel_file = extract_field_data(
+        model, ids, exclude_fields, include_relations, 
+        human_readable_headers, auto_exclude_non_human_fields
+    )
+    return excel_file
+
+
+def export_data_from_response(data, document_name=None, human_readable_headers=True):
+    """
+    Export data from view response (like aggregated stats) and return Excel file as BytesIO object
+    """
+    
+    def _make_column_human_readable(column_name):
+        """Convert column name to human-readable format"""
+        if not human_readable_headers:
+            return column_name
+            
+        # Convert snake_case to Title Case
+        readable_name = str(column_name).replace('_', ' ').title()
+        
+        # Handle common abbreviations and improve readability
+        replacements = {
+            'Id': 'ID',
+            'Url': 'URL',
+            'Api': 'API',
+            'Http': 'HTTP',
+            'Json': 'JSON',
+            'Uuid': 'UUID',
+            'Ip': 'IP',
+            'Sms': 'SMS',
+            'Pdf': 'PDF',
+            'Csv': 'CSV',
+            'Html': 'HTML',
+            'Xml': 'XML',
+            'Sql': 'SQL',
+        }
+        
+        for old, new in replacements.items():
+            readable_name = readable_name.replace(old, new)
+            
+        return readable_name
+    
+    if not data:
+        # Create empty DataFrame if no data
+        df = pd.DataFrame()
+    elif isinstance(data, list):
+        # Handle list of dictionaries (most common case)
+        df = pd.DataFrame(data)
+    elif isinstance(data, dict):
+        # Handle single dictionary or nested structure
+        if 'results' in data:
+            # Handle paginated response
+            df = pd.DataFrame(data['results'])
+        else:
+            # Handle single object or flatten nested dict
+            df = pd.DataFrame([data])
+    else:
+        # Fallback: try to convert to DataFrame
+        try:
+            df = pd.DataFrame(data)
+        except Exception:
+            df = pd.DataFrame([{'data': str(data)}])
+    
+    # Make column headers human-readable
+    if not df.empty and human_readable_headers:
+        df.columns = [_make_column_human_readable(col) for col in df.columns]
+        # Sort columns alphabetically for consistency
+        df = df.reindex(sorted(df.columns), axis=1)
+    
+    # Create Excel file in memory
+    excel_buffer = BytesIO()
+    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+        sheet_name = document_name or 'Export'
+        df.to_excel(writer,
+                    sheet_name=sheet_name,
+                    index=False,
+                    na_rep='N/A')
+        
+        # Auto-adjust column widths and apply formatting
+        if not df.empty:
+            worksheet = writer.sheets[sheet_name]
+            
+            # Style the header row
+            from openpyxl.styles import Font, PatternFill, Alignment
+            header_font = Font(bold=True, color="FFFFFF")
+            header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+            header_alignment = Alignment(horizontal="center", vertical="center")
+            
+            for col_num, column in enumerate(df.columns, 1):
+                # Style header
+                cell = worksheet.cell(row=1, column=col_num)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+                
+                # Auto-adjust column width
+                column_width = max(
+                    df[column].astype(str).map(len).max() if not df[column].empty else 0,
+                    len(str(column))
+                )
+                worksheet.column_dimensions[openpyxl.utils.get_column_letter(col_num)].width = min(column_width + 2, 50)
+    
+    excel_buffer.seek(0)
+    return excel_buffer
+
 
 
 def boolean_er(value):
@@ -398,3 +523,331 @@ def generate_unique_code(model_class, field_name, length=8):
         code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
         if not model_class.objects.filter(**{field_name: code}).exists():
             return code
+
+
+def global_model_export(model_class_or_string, 
+                       queryset=None,
+                       exclude_fields=None,
+                       include_relations=None,
+                       document_name=None,
+                       human_readable_headers=True,
+                       auto_exclude_non_human_fields=True,
+                       filters=None):
+    """
+    Global export function that can be used anywhere in the codebase to export model data to Excel.
+    
+    Args:
+        model_class_or_string: Either a Django model class or a string in format 'app.ModelName'
+        queryset: Optional queryset to export. If None, exports all objects
+        exclude_fields: List of field names to exclude from export
+        include_relations: List of relationship field names to include
+        document_name: Custom document name for the Excel file
+        human_readable_headers: Convert field names to human-readable format
+        auto_exclude_non_human_fields: Automatically exclude fields not suitable for human reading
+        filters: Dictionary of filters to apply to the queryset (e.g., {'is_active': True})
+    
+    Returns:
+        BytesIO object containing the Excel file
+        
+    Example usage:
+        # Export all active businesses
+        excel_file = global_model_export(
+            'statements.Business',
+            filters={'is_active': True},
+            include_relations=['contact_person'],
+            document_name='Active_Businesses'
+        )
+        
+        # Export specific queryset
+        from statements.models import Business
+        businesses = Business.objects.filter(name__icontains='tech')
+        excel_file = global_model_export(
+            Business,
+            queryset=businesses,
+            exclude_fields=['registration_number'],
+            document_name='Tech_Companies'
+        )
+    """
+    # Handle model class or string
+    if isinstance(model_class_or_string, str):
+        model_class = apps.get_model(model_class_or_string)
+        model_string = model_class_or_string
+    else:
+        model_class = model_class_or_string
+        model_string = f"{model_class._meta.app_label}.{model_class.__name__}"
+    
+    # Build queryset
+    if queryset is None:
+        queryset = model_class.objects.all()
+    
+    # Apply filters if provided
+    if filters:
+        queryset = queryset.filter(**filters)
+    
+    # Get IDs from queryset
+    ids = list(queryset.values_list('id', flat=True))
+    
+    if not ids:
+        # Return empty Excel file if no data
+        return export_data_from_response([], document_name or 'Empty_Export', human_readable_headers)
+    
+    # Generate document name if not provided
+    if not document_name:
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        model_name = model_class._meta.verbose_name_plural.title() if hasattr(model_class._meta, 'verbose_name_plural') else model_class.__name__
+        document_name = f"{model_name}_Export_{timestamp}"
+    
+    # Export the data
+    return export_data(
+        model_string,
+        ids,
+        exclude_fields or [],
+        include_relations or [],
+        document_name,
+        human_readable_headers,
+        auto_exclude_non_human_fields
+    )
+
+
+
+def extract_field_data(model, ids, exclude_fields, include_relations, 
+                      human_readable_headers=True, auto_exclude_non_human_fields=True):
+    """
+    Enhanced field data extraction with human-readable headers and smart relationship handling
+    """
+    
+    def _make_human_readable(field_name, field=None):
+        """Convert field name to human-readable format"""
+        if not human_readable_headers:
+            return field_name
+            
+        # Use verbose_name if available
+        if field and hasattr(field, 'verbose_name') and field.verbose_name:
+            return str(field.verbose_name).title()
+        
+        # Convert snake_case to Title Case
+        readable_name = field_name.replace('_', ' ').title()
+        
+        # Handle common abbreviations and improve readability
+        replacements = {
+            'Id': 'ID',
+            'Url': 'URL',
+            'Api': 'API',
+            'Http': 'HTTP',
+            'Json': 'JSON',
+            'Uuid': 'UUID',
+            'Ip': 'IP',
+            'Sms': 'SMS',
+            'Pdf': 'PDF',
+            'Csv': 'CSV',
+            'Html': 'HTML',
+            'Xml': 'XML',
+            'Sql': 'SQL',
+            'Fk': 'Foreign Key',
+            'Pk': 'Primary Key',
+        }
+        
+        for old, new in replacements.items():
+            readable_name = readable_name.replace(old, new)
+            
+        return readable_name
+    
+    def _format_field_value(value, field):
+        """Format field value for human readability"""
+        if value is None:
+            return 'N/A'
+        
+        # Handle boolean fields
+        if isinstance(field, models.BooleanField):
+            return 'Yes' if value else 'No'
+        
+        # Handle choice fields
+        if hasattr(field, 'choices') and field.choices:
+            # Get display value for choices
+            for choice_value, choice_display in field.choices:
+                if choice_value == value:
+                    return choice_display
+        
+        # Handle datetime fields
+        if isinstance(field, (models.DateTimeField, models.DateField, models.TimeField)):
+            if hasattr(value, 'strftime'):
+                if isinstance(field, models.DateTimeField):
+                    return value.strftime('%Y-%m-%d %H:%M:%S')
+                elif isinstance(field, models.DateField):
+                    return value.strftime('%Y-%m-%d')
+                elif isinstance(field, models.TimeField):
+                    return value.strftime('%H:%M:%S')
+        
+        # Handle decimal fields
+        if isinstance(field, models.DecimalField):
+            return f"{value:.2f}"
+        
+        # Handle foreign key relationships
+        if isinstance(field, models.ForeignKey):
+            if hasattr(value, '__str__'):
+                return str(value)
+        
+        return str(value)
+    
+    def _should_exclude_field(field, auto_exclude_non_human_fields):
+        """Determine if a field should be automatically excluded"""
+        if not auto_exclude_non_human_fields:
+            return False
+            
+        # Field types that are not human-readable
+        non_human_field_types = [
+            models.ManyToOneRel, 
+            models.ManyToManyField, 
+            models.ImageField,
+            models.FileField,
+            models.TextField,  # Usually too long for Excel
+            models.JSONField,  # Complex data structure
+            models.BinaryField,
+        ]
+        
+        # Field names that are typically not human-readable
+        non_human_field_names = [
+            'password', 'token', 'secret', 'key', 'hash', 'salt',
+            'is_superuser', 'is_staff', 'user_permissions', 'groups',
+            'last_login', 'date_joined', 'uuid', 'slug'
+        ]
+        
+        # Check field type
+        if any(isinstance(field, field_type) for field_type in non_human_field_types):
+            return True
+            
+        # Check field name patterns
+        field_name_lower = field.name.lower()
+        if any(pattern in field_name_lower for pattern in non_human_field_names):
+            return True
+            
+        return False
+    
+    def _extract_obj_data(obj, exclude_fields, include_relations):
+        """Extract data from a single object with enhanced formatting"""
+        stable_relations = deepcopy(include_relations)
+        data = {}
+        
+        for field in obj._meta.get_fields():
+            # Skip if explicitly excluded
+            if field.name in exclude_fields:
+                continue
+                
+            # Skip if should be auto-excluded
+            if _should_exclude_field(field, auto_exclude_non_human_fields):
+                continue
+            
+            # Handle included relations
+            if field.name in stable_relations:
+                if isinstance(field, (models.ForeignKey, models.OneToOneField)):
+                    if hasattr(obj, field.name):
+                        related_obj = getattr(obj, field.name)
+                        if related_obj:
+                            stable_relations.remove(field.name)
+                            # Get human-readable representation of related object
+                            human_readable_key = _make_human_readable(field.name, field)
+                            data[human_readable_key] = str(related_obj)
+                            
+                elif isinstance(field, models.OneToOneRel):
+                    if hasattr(obj, field.name):
+                        stable_relations.remove(field.name)
+                        related_obj = getattr(obj, field.name)
+                        if related_obj:
+                            ext = _extract_obj_data(related_obj, exclude_fields, stable_relations)
+                            # Prefix related object fields
+                            ext = {
+                                f'{_make_human_readable(field.name, field)} - {key}': value
+                                for key, value in ext.items()
+                            }
+                            data.update(ext)
+            
+            # Handle regular fields
+            elif not isinstance(field, (models.ManyToOneRel, models.ManyToManyRel)):
+                if hasattr(obj, field.name):
+                    value = getattr(obj, field.name)
+                    formatted_value = _format_field_value(value, field)
+                    human_readable_key = _make_human_readable(field.name, field)
+                    data[human_readable_key] = formatted_value
+                    
+        return data
+
+    # Get the model class
+    model_class = apps.get_model(model)
+    
+    # Auto-exclude ID unless explicitly included
+    if 'id' not in include_relations and auto_exclude_non_human_fields:
+        exclude_fields = list(exclude_fields) + ['id']
+    
+    # Get objects with select_related for better performance
+    objects = model_class.objects.filter(id__in=ids)
+    
+    # Add select_related for included foreign key relations
+    if include_relations:
+        fk_relations = []
+        for field_name in include_relations:
+            try:
+                field = model_class._meta.get_field(field_name)
+                if isinstance(field, models.ForeignKey):
+                    fk_relations.append(field_name)
+            except:
+                continue
+        if fk_relations:
+            objects = objects.select_related(*fk_relations)
+    
+    # Extract data for all objects
+    data = []
+    for obj in objects:
+        try:
+            obj_data = _extract_obj_data(obj, exclude_fields, include_relations)
+            data.append(obj_data)
+        except Exception as e:
+            # Log error but continue with other objects
+            print(f"Error extracting data for {obj}: {e}")
+            continue
+    
+    # Create DataFrame
+    if not data:
+        df = pd.DataFrame()
+    else:
+        df = pd.DataFrame(data)
+        
+        # Sort columns alphabetically for consistency
+        if not df.empty:
+            df = df.reindex(sorted(df.columns), axis=1)
+    
+    # Create Excel file in memory
+    excel_buffer = BytesIO()
+    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+        sheet_name = model_class._meta.verbose_name_plural.title() if hasattr(model_class._meta, 'verbose_name_plural') else model_class.__name__
+        
+        df.to_excel(writer,
+                    sheet_name=sheet_name,
+                    index=False,
+                    na_rep='N/A')
+        
+        # Auto-adjust column widths and apply formatting
+        if not df.empty:
+            worksheet = writer.sheets[sheet_name]
+            
+            # Style the header row
+            from openpyxl.styles import Font, PatternFill, Alignment
+            header_font = Font(bold=True, color="FFFFFF")
+            header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+            header_alignment = Alignment(horizontal="center", vertical="center")
+            
+            for col_num, column in enumerate(df.columns, 1):
+                # Style header
+                cell = worksheet.cell(row=1, column=col_num)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+                
+                # Auto-adjust column width
+                column_width = max(
+                    df[column].astype(str).map(len).max() if not df[column].empty else 0,
+                    len(str(column))
+                )
+                worksheet.column_dimensions[openpyxl.utils.get_column_letter(col_num)].width = min(column_width + 2, 50)
+    
+    excel_buffer.seek(0)
+    return excel_buffer
