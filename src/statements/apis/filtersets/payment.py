@@ -45,6 +45,9 @@ class PaymentFilterSet(django_filters.FilterSet):
         field_name='action',
         label='Action (withdraw/deposit)'
     )
+    
+    start_date = django_filters.DateFilter(field_name="created_at", lookup_expr='gte', label='Start Date (YYYY-MM-DD)')
+    end_date = django_filters.DateFilter(field_name="created_at", lookup_expr='lte', label='End Date (YYYY-MM-DD)')
 
     class Meta:
         model = Payment
@@ -60,10 +63,8 @@ class PaymentFilterSet(django_filters.FilterSet):
             'related_account',
             'related_business',
             'action',
-            'created_at', # For date range filtering
-            'updated_at', # For date range filtering
+            'created_at',
+            'start_date',
+            'end_date',
+            'updated_at',
         ]
-
-    # Example for date range filtering if needed:
-    # start_date = django_filters.DateFilter(field_name="created_at", lookup_expr='gte', label='Start Date (YYYY-MM-DD)')
-    # end_date = django_filters.DateFilter(field_name="created_at", lookup_expr='lte', label='End Date (YYYY-MM-DD)')
