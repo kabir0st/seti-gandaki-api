@@ -163,12 +163,14 @@ class ExpenseItemSerializer(serializers.ModelSerializer):
     assigned_fuel_ticket_filters = serializers.JSONField(
         write_only=True, required=False, allow_null=True
     )
-    # attached_fuel_tickets will be handled by PrimaryKeyRelatedField by default
-    # It expects a list of PKs and resolves to instances in validated_data
+    # Explicitly define attached_fuel_tickets to manage ManyToMany relationship handling
+    attached_fuel_tickets = serializers.PrimaryKeyRelatedField(
+        queryset=FuelTicket.objects.all(), many=True, required=False, allow_null=True, write_only=True
+    )
 
     class Meta:
         model = ExpenseItem
-        fields = '__all__'
+        fields = '__all__' # Keep __all__ as the custom create/update logic handles popping and setting the m2m
         read_only_fields = ['total_price', 'expense'] # total_price is calculated by model's save
 
     def _process_fuel_tickets(self, filters_data):
