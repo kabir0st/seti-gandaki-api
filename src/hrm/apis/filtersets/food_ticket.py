@@ -8,7 +8,7 @@ class FoodTicketFilterSet(django_filters.FilterSet):
     """
     FilterSet for FoodTicket API.
     """
-    staff_id = django_filters.UUIDFilter(field_name='staff__id', label='Staff ID')
+    staff_id = django_filters.CharFilter(field_name='staff__id', label='Staff ID')
     issued_by_id = django_filters.ModelChoiceFilter(
         field_name='issued_by',
         queryset=User.objects.all(), # Or filter further, e.g., User.objects.filter(is_staff=True)

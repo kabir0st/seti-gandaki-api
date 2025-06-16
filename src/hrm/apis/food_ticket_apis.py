@@ -32,7 +32,6 @@ class FoodTicketViewSet(viewsets.ModelViewSet):
     queryset = FoodTicket.objects.select_related('staff', 'issued_by').all()
     serializer_class = FoodTicketSerializer
     permission_classes = [IsAuthenticated, IsStaffOrReadOnly] # Staff can CRUD, others can only read
-    filter_backends = [DjangoFilterBackend]
     filterset_class = FoodTicketFilterSet
 
     def get_serializer_class(self):
