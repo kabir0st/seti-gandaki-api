@@ -369,7 +369,7 @@ class FuelingStatsAPIView(views.APIView):
                 "latest_ticket_date": period_consumed_data.get('latest_date').isoformat() if period_consumed_data.get('latest_date') else None,
             }
         }
-        response_data['unpaid_consumed_ticket_count'] = list(unpaid_consumed_tickets_queryset.count())
+        response_data['unpaid_consumed_ticket_count'] = unpaid_consumed_tickets_queryset.count()
         if get_all_ids and get_all_ids.lower() in ['true', '1']:
              response_data['unpaid_consumed_ticket_ids'] = list(unpaid_consumed_tickets_queryset.values_list('ticket_id', flat=True))
             
