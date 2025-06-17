@@ -6,11 +6,8 @@ from statements.models.cashcounter_log import CashCounterLog
 
 
 
-import datetime
-from django.utils import timezone
 from rest_framework import serializers
 from decimal import Decimal
-from django.db.models import Q # Q can be useful for complex queries
 from hrm.models.fuel import FuelTicket
 from statements.models.cashcounter import CashCounter
 from statements.models.cashcounter_log import CashCounterLog

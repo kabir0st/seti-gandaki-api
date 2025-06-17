@@ -4,19 +4,22 @@ from core.utils.viewsets import DefaultViewSet
 
 from statements.models.invoice import Invoice, InvoiceItem
 from statements.serializers import InvoiceSerializer, InvoiceItemSerializer
+from statements.apis.filtersets.invoice import InvoiceFilterSet, InvoiceItemFilterSet
 
 
 class InvoiceViewSet(DefaultViewSet):
     queryset = Invoice.objects.all()
     serializer_class = InvoiceSerializer
     permission_classes = [IsAuthenticated]
-    search_fields = ['invoice_number', 'customer_name', 'customer_phone']
+    search_fields = ['invoice_number', 'customer_name', 'customer_phone_number']
+    filterset_class = InvoiceFilterSet
 
 
 class InvoiceItemViewSet(DefaultViewSet):
     serializer_class = InvoiceItemSerializer
     permission_classes = [IsAuthenticated]
-    search_fields = [ 'item_name']
+    search_fields = ['item_name']
+    filterset_class = InvoiceItemFilterSet
 
     def get_queryset(self):
         invoice_id = self.kwargs.get('invoice_pk')
