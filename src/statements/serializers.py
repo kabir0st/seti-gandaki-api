@@ -477,7 +477,10 @@ class ExpenseSerializer(serializers.ModelSerializer):
         expense_items_data = validated_data.pop('expense_items')
         expense = Expense.objects.create(**validated_data)
         for item_data in expense_items_data:
-            ExpenseItem.objects.create(expense=expense, **item_data)
+            # Use ExpenseItemSerializer to handle assigned_fuel_ticket_filters
+            item_serializer = ExpenseItemSerializer(data=item_data, context=self.context)
+            item_serializer.is_valid(raise_exception=True)
+            item_serializer.save(expense=expense)
         return expense
 
     def update(self, instance, validated_data):
@@ -492,13 +495,17 @@ class ExpenseSerializer(serializers.ModelSerializer):
             if item_id:
                 try:
                     expense_item = ExpenseItem.objects.get(id=item_id, expense=instance)
-                    for attr, value in item_data.items():
-                        setattr(expense_item, attr, value)
-                    expense_item.save()
+                    # Use ExpenseItemSerializer to handle assigned_fuel_ticket_filters
+                    item_serializer = ExpenseItemSerializer(expense_item, data=item_data, context=self.context, partial=True)
+                    item_serializer.is_valid(raise_exception=True)
+                    item_serializer.save()
                 except ExpenseItem.DoesNotExist:
                     pass
             else:
-                ExpenseItem.objects.create(expense=instance, **item_data)
+                # Use ExpenseItemSerializer to handle assigned_fuel_ticket_filters
+                item_serializer = ExpenseItemSerializer(data=item_data, context=self.context)
+                item_serializer.is_valid(raise_exception=True)
+                item_serializer.save(expense=instance)
 
         return instance
 
