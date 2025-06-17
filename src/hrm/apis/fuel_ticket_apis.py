@@ -338,9 +338,9 @@ class FuelingStatsAPIView(views.APIView):
         )
 
         # Stats for unpaid tickets
-        unpaid_tickets_queryset = all_tickets_queryset.filter(is_paid=False)
+        unpaid_consumed_tickets_queryset = all_tickets_queryset.filter(is_paid=False, is_consumed = True)
 
-        unpaid_aggregation = unpaid_tickets_queryset.aggregate(
+        unpaid_aggregation = unpaid_consumed_tickets_queryset.aggregate(
             total_bill_amount=Sum('bill_amount')
         )
         unpaid_total_bill_amount = unpaid_aggregation.get('total_bill_amount') or 0
@@ -369,8 +369,8 @@ class FuelingStatsAPIView(views.APIView):
                 "latest_ticket_date": period_consumed_data.get('latest_date').isoformat() if period_consumed_data.get('latest_date') else None,
             }
         }
-
+        response_data['unpaid_consumed_ticket_count'] = list(unpaid_consumed_tickets_queryset.count())
         if get_all_ids and get_all_ids.lower() in ['true', '1']:
-             response_data['unpaid_ticket_ids'] = list(unpaid_tickets_queryset.values_list('ticket_id', flat=True))
-
+             response_data['unpaid_consumed_ticket_ids'] = list(unpaid_consumed_tickets_queryset.values_list('ticket_id', flat=True))
+            
         return Response(response_data)

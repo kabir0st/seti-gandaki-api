@@ -35,16 +35,11 @@ class FuelTicketSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FuelTicket
-        fields = (
-            'id', 'ticket_id', 'dispatched_by','vehicle',"vehicle_details",  'fuel_type', 'quantity_liters',
-            'vehicle_registration_number', 'driver_name', 'driver_phone', 'remarks',
-            'is_consumed', 'consumed_at', 'consumed_by_station', 'consumed_by_station_id',
-            'created_at', 'updated_at', 'ticket_url', 'bill_amount'
-        )
+        fields = "__all__"
 
         read_only_fields = (
             'id', 'ticket_id', 'is_consumed', 'consumed_at', 
-            'created_at', 'updated_at', 'ticket_url'
+            'created_at', 'updated_at', 'ticket_url', 'is_paid'
         )
 
     def get_ticket_url(self, obj):
