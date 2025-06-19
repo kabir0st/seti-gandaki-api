@@ -34,16 +34,4 @@ class GatePassFilterSet(django_filters.FilterSet):
 
     class Meta:
         model = GatePass
-        fields = [
-            'vehicle_license_plate',
-            'license_plate',
-            'driver_name__icontains',
-            'driver_phone',
-            'entry_time_after',
-            'entry_time_before',
-            'exit_time_after',
-            'exit_time_before',
-            'is_open',
-            'created_at_after',
-            'created_at_before',
-        ]
+        fields = "__all__"
