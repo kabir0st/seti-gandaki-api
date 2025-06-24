@@ -91,7 +91,7 @@ class PurchaseBillFilter(DefaultFilterSet):
     class Meta:
         model = PurchaseBill
         fields = [
-            'from_business', 'status', 'purchase_date', 'created_at', 'updated_at'
+            'from_business', 'status', 'purchase_date', 'created_at', 'updated_at', 'is_paid', 'assigned_staffs', 'assigned_vehicles'
         ]
 
 
