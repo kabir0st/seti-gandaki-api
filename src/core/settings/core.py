@@ -35,8 +35,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 ]
 
-if not os.environ.get("GITHUB_WORKFLOW"):
-    INSTALLED_APPS.append('django_minio_backend')
 
 MIDDLEWARE = [
     "django.middleware.gzip.GZipMiddleware",
