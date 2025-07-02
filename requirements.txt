@@ -40,12 +40,11 @@ isort==5.13.2
 mccabe==0.7.0
 minio==7.2.13
 msgpack==1.1.0
-numpy==2.3.0
+numpy
 openpyxl==3.1.5
 packaging==24.2
-pandas==2.3.0
+pandas
 pillow==11.0.0
-platformdirs==4.3.6
 psycopg2==2.9.10
 pyasn1==0.6.1
 pyasn1_modules==0.4.1
@@ -56,7 +55,7 @@ pylint==3.3.1
 pylint-django==2.6.1
 pylint-plugin-utils==0.8.2
 pyOpenSSL==25.0.0
-python-dateutil==2.9.0.post0
+python-dateutil
 python-dotenv==1.0.1
 pytz==2024.2
 PyYAML==6.0.2
@@ -79,4 +78,3 @@ uWSGI==2.0.28
 websockets==14.2
 whitenoise==6.8.2
 yapf==0.43.0
-zope.interface==7.2
