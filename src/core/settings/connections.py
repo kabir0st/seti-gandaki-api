@@ -14,7 +14,8 @@ CELERY_TIMEZONE = "Asia/Kathmandu"
 SWAGGER_SETTINGS = {
     "DEFAULT_INFO": "app.urls.api_info",
 }
-REDIS_URL = f"redis://{RESOURCE}:6379/{CHANNEL}"
+# REDIS_URL = f"redis://{RESOURCE}:6379/{CHANNEL}"
+REDIS_URL = "redis://localhost:6379/1"
 
 CELERY_BROKER_URL = REDIS_URL
 CELERY_BROKER = REDIS_URL

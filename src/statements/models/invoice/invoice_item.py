@@ -2,8 +2,7 @@ from decimal import Decimal
 
 from django.db import models
 from django.db.models import signals
-from django.db.models.signals import (post_save,
-                                      post_delete)
+from django.db.models.signals import (post_save, post_delete)
 from django.dispatch import receiver
 
 from core.utils.functions import to_decimal
@@ -19,7 +18,9 @@ class InvoiceItem(DefaultModel):
 
     # Item Info
     item_name = models.CharField(max_length=255, blank=True, default='')
-    quantity = models.IntegerField(default=0)
+    quantity = models.DecimalField(default=Decimal(0.00),
+                                   max_digits=10,
+                                   decimal_places=2)
     unit = models.CharField(max_length=50, blank=True, default='cubic_meter')
     # billing infos
     price_per_item = models.DecimalField(default=Decimal(0.00),
@@ -41,7 +42,6 @@ class InvoiceItem(DefaultModel):
                                       max_digits=60,
                                       decimal_places=2)
 
-
     is_marked_as_complete = models.BooleanField(default=False)
     ALLOW_UPDATE = [
         'is_marked_as_complete',
@@ -57,24 +57,23 @@ class InvoiceItem(DefaultModel):
     def discount_amount(self):
         if self.discount_percent:
             return to_decimal(
-                (self.sub_total_amount * self.discount_percent) / to_decimal(100))
+                (to_decimal(self.sub_total_amount) *
+                 to_decimal(self.discount_percent)) / to_decimal(100))
         return to_decimal(0.00)
-
-
 
 
 @receiver(post_save, sender=InvoiceItem)
 def invoice_item_post_save_handler(sender, created, instance, **kwargs):
 
     instance.sub_total_amount = to_decimal(
-        instance.price_per_item) * instance.quantity
+        instance.price_per_item) * to_decimal(instance.quantity)
 
     instance.bill_amount = (instance.sub_total_amount -
-                                instance.discount_amount )
+                            instance.discount_amount)
 
     signals.post_save.disconnect(invoice_item_post_save_handler,
                                  sender=InvoiceItem)
-    
+
     instance.save()
     # to recalculate if only invoice item's billing is changed
     instance.invoice.save()
@@ -85,4 +84,3 @@ def invoice_item_post_save_handler(sender, created, instance, **kwargs):
 @receiver(post_delete, sender=InvoiceItem)
 def handle_post_delete_invoice(sender, instance, *args, **kwargs):
     instance.invoice.save()
-

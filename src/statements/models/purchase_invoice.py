@@ -7,11 +7,11 @@ from django.db.models.signals import (post_delete, post_save, pre_delete,
                                       pre_save)
 from django.dispatch import receiver
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from core.utils.functions import limit_size, to_decimal
 from statements.models.business import Business
 from statements.models.support import Staff
-from django.utils.translation import gettext_lazy as _
 
 
 class Vehicle(models.Model):
@@ -49,7 +49,7 @@ class PurchaseBill(models.Model):
                                       on_delete=models.CASCADE,
                                       null=True,
                                       blank=True)
-    
+
     purchase_bill_number = models.CharField(max_length=255,
                                             blank=True,
                                             null=True)
@@ -127,17 +127,20 @@ def post_save_handler_purchase_bill(sender, instance, created, **kwargs):
     """
     # This assumes a related field 'payments' exists on PurchaseBill model
     # similar to the Invoice model. If not, this logic needs adjustment.
-    
+
     # Calculate current paid amount using aggregation
     # Ensure 'payments' is the correct related_name for payments to this PurchaseBill
-    if hasattr(instance, 'payments'): # Check if payments related manager exists
-        paid_aggregation = instance.payments.filter(is_refunded=False).aggregate(total_paid=models.Sum('amount'))
+    if hasattr(instance,
+               'payments'):  # Check if payments related manager exists
+        paid_aggregation = instance.payments.filter(
+            is_refunded=False).aggregate(total_paid=models.Sum('amount'))
         current_paid_amount = paid_aggregation['total_paid'] or Decimal("0.00")
     else:
         # Fallback or error handling if 'payments' related manager doesn't exist as expected
         # For now, assume it might not have payments or the relation is named differently.
         # This part might need adjustment based on actual model structure for payments to PurchaseBill.
-        current_paid_amount = Decimal("0.00") # Default if no payments or relation issue
+        current_paid_amount = Decimal(
+            "0.00")  # Default if no payments or relation issue
 
     needs_save = False
     if instance.paid_amount != current_paid_amount:
@@ -152,7 +155,8 @@ def post_save_handler_purchase_bill(sender, instance, created, **kwargs):
 
     if needs_save:
         # Disconnect signal to avoid recursion and save
-        post_save.disconnect(post_save_handler_purchase_bill, sender=PurchaseBill)
+        post_save.disconnect(post_save_handler_purchase_bill,
+                             sender=PurchaseBill)
         instance.save(update_fields=['paid_amount', 'is_paid'])
         post_save.connect(post_save_handler_purchase_bill, sender=PurchaseBill)
 
@@ -167,7 +171,8 @@ def prevent_delete_if_not_draft(sender, instance, **kwargs):
 
 # New pre_save signal for PurchaseBill
 @receiver(pre_save, sender=PurchaseBill)
-def recalculate_bill_amount_on_purchase_bill_change(sender, instance, **kwargs):
+def recalculate_bill_amount_on_purchase_bill_change(sender, instance,
+                                                    **kwargs):
     """
     Recalculates PurchaseBill.bill_amount before saving if fields like
     grace_discount, shipping_and_handling_costs, or additional_costs change,
@@ -176,12 +181,14 @@ def recalculate_bill_amount_on_purchase_bill_change(sender, instance, **kwargs):
     It does NOT modify PurchaseBill.sub_total, which is purely derived from items.
     """
     current_items_bill_total = Decimal("0.00")
-    if instance.pk: # If the instance is already in the DB
+    if instance.pk:  # If the instance is already in the DB
         # Sum bill_amount from its associated items
         # Ensure to use instance.pk for filtering if instance is not fully saved yet but has pk
         items_qs = PurchaseItem.objects.filter(purchase_bill_id=instance.pk)
-        aggregation_result = items_qs.aggregate(total_item_bill=models.Sum('bill_amount'))
-        current_items_bill_total = aggregation_result['total_item_bill'] or Decimal('0.00')
+        aggregation_result = items_qs.aggregate(
+            total_item_bill=models.Sum('bill_amount'))
+        current_items_bill_total = aggregation_result[
+            'total_item_bill'] or Decimal('0.00')
     # If not instance.pk (new instance), current_items_bill_total remains 0.00.
     # This is correct as items wouldn't be linked yet through the database.
     # The PurchaseItem post_save signals will later call update_purchase_bill_totals
@@ -189,17 +196,17 @@ def recalculate_bill_amount_on_purchase_bill_change(sender, instance, **kwargs):
 
     # Calculate new bill_amount based on item totals and the bill's own cost factors
     new_bill_amount_val = (
-        current_items_bill_total -
-        to_decimal(instance.grace_discount) +  # These are current values on the instance
+        current_items_bill_total - to_decimal(instance.grace_discount)
+        +  # These are current values on the instance
         to_decimal(instance.shipping_and_handling_costs) +
-        to_decimal(instance.additional_costs)
-    )
-    
+        to_decimal(instance.additional_costs))
+
     # Set the calculated bill_amount on the instance.
     # The actual save operation will persist this.
-    instance.bill_amount = new_bill_amount_val.quantize(
-        Decimal('0.01'), rounding=ROUND_HALF_UP
-    )
+    instance.bill_amount = new_bill_amount_val.quantize(Decimal('0.01'),
+                                                        rounding=ROUND_HALF_UP)
+
+
 class PurchaseItem(models.Model):
     purchase_bill = models.ForeignKey(PurchaseBill,
                                       related_name='purchase_items',
@@ -302,13 +309,12 @@ def update_purchase_bill_totals(purchase_bill_instance):
     # Calculate new bill_amount from items and bill's own costs/discounts
     current_items_bill_total = items.aggregate(
         total=models.Sum('bill_amount'))['total'] or Decimal('0.00')
-    
+
     calculated_bill_amount_val = (
         current_items_bill_total -
         to_decimal(purchase_bill_instance.grace_discount) +
         to_decimal(purchase_bill_instance.shipping_and_handling_costs) +
-        to_decimal(purchase_bill_instance.additional_costs)
-    )
+        to_decimal(purchase_bill_instance.additional_costs))
     new_bill_amount = calculated_bill_amount_val.quantize(
         Decimal('0.01'), rounding=ROUND_HALF_UP)
 

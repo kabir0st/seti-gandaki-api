@@ -10,7 +10,6 @@
 	"python.defaultInterpreterPath": ".venv/bin/python",
 	"editor.formatOnSave": true,
 	"breadcrumbs.enabled": true,
-	"python.analysis.extraPaths": ["./src"],
 	"[python]": {
 		"editor.formatOnType": false,
 		"editor.formatOnSave": true

@@ -4,8 +4,6 @@ from statements.models.business import Business
 from statements.models.cashcounter import CashCounter
 from statements.models.cashcounter_log import CashCounterLog
 
-
-
 from rest_framework import serializers
 from decimal import Decimal
 from hrm.models.fuel import FuelTicket
@@ -22,21 +20,22 @@ from .models.expense import ExpenseCategory, Expense, ExpenseItem
 from .models.payments import Payment, Account
 
 
-
 class BusinessSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Business
         fields = '__all__'
 
 
-
 class CashCounterSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = CashCounter
         fields = '__all__'
 
 
 class CashCounterLogSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = CashCounterLog
         fields = '__all__'
@@ -138,37 +137,48 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = InvoiceItem
         fields = '__all__'
-        read_only_fields = ['sub_total_amount', 'bill_amount', 'discount_amount']
+        read_only_fields = [
+            'sub_total_amount', 'bill_amount', 'discount_amount'
+        ]
         extra_kwargs = {
-            'invoice': {'required': False, 'allow_null': True}  # For nested creation, parent provides. For direct, client must.
+            'invoice': {
+                'required': False,
+                'allow_null': True
+            }  # For nested creation, parent provides. For direct, client must.
         }
 
 
 class StatementSettingsSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = StatementSettings
         fields = '__all__'
 
 
 class ExpenseCategorySerializer(serializers.ModelSerializer):
+
     class Meta:
         model = ExpenseCategory
         fields = '__all__'
 
 
 class ExpenseItemSerializer(serializers.ModelSerializer):
-    assigned_fuel_ticket_filters = serializers.JSONField(
-        write_only=True, required=False, allow_null=True
-    )
+    assigned_fuel_ticket_filters = serializers.JSONField(write_only=True,
+                                                         required=False,
+                                                         allow_null=True)
     # Explicitly define attached_fuel_tickets to manage ManyToMany relationship handling
     attached_fuel_tickets = serializers.PrimaryKeyRelatedField(
-        queryset=FuelTicket.objects.all(), many=True, required=False, allow_null=True, write_only=True
-    )
+        queryset=FuelTicket.objects.all(),
+        many=True,
+        required=False,
+        allow_null=True,
+        write_only=True)
 
     class Meta:
         model = ExpenseItem
-        fields = '__all__' # Keep __all__ as the custom create/update logic handles popping and setting the m2m
-        read_only_fields = ['total_price', 'expense'] # total_price is calculated by model's save
+        fields = '__all__'  # Keep __all__ as the custom create/update logic handles popping and setting the m2m
+        read_only_fields = ['total_price', 'expense'
+                            ]  # total_price is calculated by model's save
 
     def _process_fuel_tickets(self, filters_data):
         if not filters_data or not isinstance(filters_data, dict):
@@ -176,26 +186,33 @@ class ExpenseItemSerializer(serializers.ModelSerializer):
 
         has_valid_filters = False
         fuel_ticket_qs = FuelTicket.objects.filter(is_consumed=True)
-        
+
         if 'ids' in filters_data:
             has_valid_filters = True
             ids = filters_data['ids']
             if not isinstance(ids, list):
-                raise serializers.ValidationError({"assigned_fuel_ticket_filters": "ids must be a list."})
+                raise serializers.ValidationError(
+                    {"assigned_fuel_ticket_filters": "ids must be a list."})
             fuel_ticket_qs = fuel_ticket_qs.filter(id__in=ids)
         else:
             station_id = filters_data.get('consumed_by_station')
             if station_id is not None:
                 has_valid_filters = True
-                fuel_ticket_qs = fuel_ticket_qs.filter(consumed_by_station_id=station_id)
-            
+                fuel_ticket_qs = fuel_ticket_qs.filter(
+                    consumed_by_station_id=station_id)
+
             date_range_str = filters_data.get('consumed_at__range')
             if date_range_str:
                 has_valid_filters = True
-                if not (isinstance(date_range_str, list) and len(date_range_str) == 2):
-                    raise serializers.ValidationError({"assigned_fuel_ticket_filters": "consumed_at__range must be a list of two date/datetime strings."})
-                fuel_ticket_qs = fuel_ticket_qs.filter(consumed_at__range=date_range_str)
-            
+                if not (isinstance(date_range_str, list)
+                        and len(date_range_str) == 2):
+                    raise serializers.ValidationError({
+                        "assigned_fuel_ticket_filters":
+                        "consumed_at__range must be a list of two date/datetime strings."
+                    })
+                fuel_ticket_qs = fuel_ticket_qs.filter(
+                    consumed_at__range=date_range_str)
+
             # Add other potential filters here and set has_valid_filters = True
 
         if not has_valid_filters:
@@ -205,24 +222,31 @@ class ExpenseItemSerializer(serializers.ModelSerializer):
         # Ensure all selected tickets are indeed consumed (double check)
         for ticket in selected_tickets:
             if not ticket.is_consumed:
-                 # This case should ideally not be hit if the initial filter `is_consumed=True` is effective
+                # This case should ideally not be hit if the initial filter `is_consumed=True` is effective
                 raise serializers.ValidationError(
                     f"Fuel ticket {ticket.ticket_id} was selected but is not marked as consumed. Please check data integrity or filter logic."
                 )
-        total_bill = sum(ticket.bill_amount for ticket in selected_tickets) if selected_tickets else Decimal('0.00')
-        
+        total_bill = sum(
+            ticket.bill_amount
+            for ticket in selected_tickets) if selected_tickets else Decimal(
+                '0.00')
+
         return selected_tickets, total_bill
 
     def create(self, validated_data):
-        assigned_filters = validated_data.pop('assigned_fuel_ticket_filters', None)
+        assigned_filters = validated_data.pop('assigned_fuel_ticket_filters',
+                                              None)
         # validated_data['attached_fuel_tickets'] will contain FuelTicket instances if provided
-        manually_attached_ticket_instances = validated_data.pop('attached_fuel_tickets', None)
+        manually_attached_ticket_instances = validated_data.pop(
+            'attached_fuel_tickets', None)
 
         final_tickets_to_attach_instances = []
-        
+
         if assigned_filters:
-            selected_tickets, total_bill = self._process_fuel_tickets(assigned_filters)
-            validated_data['item_name'] = validated_data.get('item_name', "Fuel Expense (from filters)")
+            selected_tickets, total_bill = self._process_fuel_tickets(
+                assigned_filters)
+            validated_data['item_name'] = validated_data.get(
+                'item_name', "Fuel Expense (from filters)")
             validated_data['quantity'] = Decimal('1.00')
             validated_data['price_per_item'] = total_bill
             final_tickets_to_attach_instances = selected_tickets
@@ -234,34 +258,43 @@ class ExpenseItemSerializer(serializers.ModelSerializer):
                         f"Manually attached fuel ticket {ticket_instance.ticket_id} is not consumed."
                     )
                 valid_manual_tickets.append(ticket_instance)
-            
+
             final_tickets_to_attach_instances = valid_manual_tickets
-            
+
             if 'price_per_item' not in validated_data and 'quantity' not in validated_data:
-                 total_bill_manual = sum(t.bill_amount for t in valid_manual_tickets) if valid_manual_tickets else Decimal('0.00')
-                 validated_data['item_name'] = validated_data.get('item_name', "Fuel Expense (manual attach)")
-                 validated_data['quantity'] = Decimal('1.00')
-                 validated_data['price_per_item'] = total_bill_manual
-        
+                total_bill_manual = sum(
+                    t.bill_amount for t in valid_manual_tickets
+                ) if valid_manual_tickets else Decimal('0.00')
+                validated_data['item_name'] = validated_data.get(
+                    'item_name', "Fuel Expense (manual attach)")
+                validated_data['quantity'] = Decimal('1.00')
+                validated_data['price_per_item'] = total_bill_manual
+
         # Model's save method will calculate total_price based on quantity and price_per_item
         expense_item = super().create(validated_data)
 
         if final_tickets_to_attach_instances:
-            expense_item.attached_fuel_tickets.set(final_tickets_to_attach_instances)
-        
+            expense_item.attached_fuel_tickets.set(
+                final_tickets_to_attach_instances)
+
         return expense_item
 
     def update(self, instance, validated_data):
-        assigned_filters = validated_data.pop('assigned_fuel_ticket_filters', None)
-        manually_attached_ticket_instances = validated_data.pop('attached_fuel_tickets', None)
+        assigned_filters = validated_data.pop('assigned_fuel_ticket_filters',
+                                              None)
+        manually_attached_ticket_instances = validated_data.pop(
+            'attached_fuel_tickets', None)
 
-        final_tickets_to_attach_instances = list(instance.attached_fuel_tickets.all())
+        final_tickets_to_attach_instances = list(
+            instance.attached_fuel_tickets.all())
         should_update_attachments = False
 
         if assigned_filters:
-            selected_tickets, total_bill = self._process_fuel_tickets(assigned_filters)
+            selected_tickets, total_bill = self._process_fuel_tickets(
+                assigned_filters)
             # Update instance fields that will be used by model's save()
-            instance.item_name = validated_data.get('item_name', instance.item_name)
+            instance.item_name = validated_data.get('item_name',
+                                                    instance.item_name)
             instance.quantity = Decimal('1.00')
             instance.price_per_item = total_bill
             final_tickets_to_attach_instances = selected_tickets
@@ -274,34 +307,42 @@ class ExpenseItemSerializer(serializers.ModelSerializer):
                         f"Manually attached fuel ticket {ticket_instance.ticket_id} is not consumed."
                     )
                 valid_manual_tickets.append(ticket_instance)
-            
+
             final_tickets_to_attach_instances = valid_manual_tickets
             should_update_attachments = True
-            
+
             if 'price_per_item' not in validated_data and 'quantity' not in validated_data:
-                 total_bill_manual = sum(t.bill_amount for t in valid_manual_tickets) if valid_manual_tickets else Decimal('0.00')
-                 instance.item_name = validated_data.get('item_name', instance.item_name)
-                 instance.quantity = Decimal('1.00')
-                 instance.price_per_item = total_bill_manual
-        
+                total_bill_manual = sum(
+                    t.bill_amount for t in valid_manual_tickets
+                ) if valid_manual_tickets else Decimal('0.00')
+                instance.item_name = validated_data.get(
+                    'item_name', instance.item_name)
+                instance.quantity = Decimal('1.00')
+                instance.price_per_item = total_bill_manual
+
         # Apply other validated data to the instance fields
         # Note: instance.quantity and instance.price_per_item might have been set above
         for key, value in validated_data.items():
             setattr(instance, key, value)
-        
+
         # Save the instance. Model's save() will recalculate total_price.
         instance.save()
 
         if should_update_attachments:
-            instance.attached_fuel_tickets.set(final_tickets_to_attach_instances)
-        
+            instance.attached_fuel_tickets.set(
+                final_tickets_to_attach_instances)
+
         return instance
 
 
 class PaymentSerializer(serializers.ModelSerializer):
-    created_by_details = serializers.StringRelatedField(source='created_by', read_only=True, allow_null=True)
-    related_account_details = serializers.StringRelatedField(source='related_account', read_only=True, allow_null=True)
-    related_business_details = serializers.StringRelatedField(source='related_business', read_only=True, allow_null=True)
+    created_by_details = serializers.StringRelatedField(source='created_by',
+                                                        read_only=True,
+                                                        allow_null=True)
+    related_account_details = serializers.StringRelatedField(
+        source='related_account', read_only=True, allow_null=True)
+    related_business_details = serializers.StringRelatedField(
+        source='related_business', read_only=True, allow_null=True)
     # To avoid circular dependency, we will use StringRelatedField or PrimaryKeyRelatedField for related models
     # or define them as forward references if DRF version supports it well.
     # For now, let's defer full nested serializers for invoice/purchase_bill/expense details within payment
@@ -315,17 +356,32 @@ class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = '__all__'
-        read_only_fields = ('created_at', 'updated_at', 'payment_for', 'is_refunded')
+        read_only_fields = ('created_at', 'updated_at', 'payment_for',
+                            'is_refunded')
         extra_kwargs = {
-            'invoice': {'allow_null': True, 'required': False},
-            'purchase_bill': {'allow_null': True, 'required': False},
-            'expense': {'allow_null': True, 'required': False},
-            'created_by': {'allow_null': True, 'required': False, 'read_only': True},
+            'invoice': {
+                'allow_null': True,
+                'required': False
+            },
+            'purchase_bill': {
+                'allow_null': True,
+                'required': False
+            },
+            'expense': {
+                'allow_null': True,
+                'required': False
+            },
+            'created_by': {
+                'allow_null': True,
+                'required': False,
+                'read_only': True
+            },
         }
 
     def create(self, validated_data):
         request = self.context.get('request')
-        if request and hasattr(request, 'user') and request.user.is_authenticated:
+        if request and hasattr(request,
+                               'user') and request.user.is_authenticated:
             validated_data['created_by'] = request.user
         return super().create(validated_data)
 
@@ -334,7 +390,7 @@ class PaymentSerializer(serializers.ModelSerializer):
         provided_relations = [obj for obj in related_objects if data.get(obj)]
 
         if len(provided_relations) == 0:
-            pass # Allowing manual payments
+            pass  # Allowing manual payments
 
         if len(provided_relations) > 1:
             raise serializers.ValidationError(
@@ -344,6 +400,7 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 
 class AccountSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Account
         fields = '__all__'
@@ -386,7 +443,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
     customer_details = BusinessSerializer(source='customer',
                                           read_only=True,
                                           allow_null=True)
-    payments = PaymentSerializer(many=True, read_only=True) # Added payments
+    payments = PaymentSerializer(many=True, read_only=True)  # Added payments
 
     class Meta:
         model = Invoice
@@ -414,8 +471,11 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         if instance.status != InvoiceStatus.DRAFT and instance.invoice_number:
-            if 'is_taxable' in validated_data and validated_data['is_taxable'] != instance.is_taxable:
-                raise serializers.ValidationError("Cannot change 'is_taxable' once invoice is approved and has an invoice number.")
+            if 'is_taxable' in validated_data and validated_data[
+                    'is_taxable'] != instance.is_taxable:
+                raise serializers.ValidationError(
+                    "Cannot change 'is_taxable' once invoice is approved and has an invoice number."
+                )
 
         invoice_items_data = validated_data.pop('invoice_items', [])
 
@@ -427,7 +487,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
             item_id = item_data.get('id')
             if item_id:
                 try:
-                    invoice_item = InvoiceItem.objects.get(id=item_id, invoice=instance)
+                    invoice_item = InvoiceItem.objects.get(id=item_id,
+                                                           invoice=instance)
                     for attr, value in item_data.items():
                         setattr(invoice_item, attr, value)
                     invoice_item.save()
@@ -440,12 +501,14 @@ class InvoiceSerializer(serializers.ModelSerializer):
 
 
 class StatementSettingsSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = StatementSettings
         fields = '__all__'
 
 
 class ExpenseCategorySerializer(serializers.ModelSerializer):
+
     class Meta:
         model = ExpenseCategory
         fields = '__all__'
@@ -453,17 +516,21 @@ class ExpenseCategorySerializer(serializers.ModelSerializer):
 
 # Note: PaymentSerializer was moved up
 
+
 class MiniExpenseSerializer(serializers.ModelSerializer):
     """
     A minimal serializer for Expense model, used in nested representations.
     """
+
     class Meta:
         model = Expense
-        fields = ('id', 'expense_number', 'expense_date', 'total_amount', 'category')
+        fields = ('id', 'expense_number', 'expense_date', 'total_amount',
+                  'category')
+
 
 class ExpenseSerializer(serializers.ModelSerializer):
     expense_items = ExpenseItemSerializer(many=True)
-    payments = PaymentSerializer(many=True, read_only=True) # Added payments
+    payments = PaymentSerializer(many=True, read_only=True)  # Added payments
 
     class Meta:
         model = Expense
@@ -475,7 +542,8 @@ class ExpenseSerializer(serializers.ModelSerializer):
         expense = Expense.objects.create(**validated_data)
         for item_data in expense_items_data:
             # Use ExpenseItemSerializer to handle assigned_fuel_ticket_filters
-            item_serializer = ExpenseItemSerializer(data=item_data, context=self.context)
+            item_serializer = ExpenseItemSerializer(data=item_data,
+                                                    context=self.context)
             item_serializer.is_valid(raise_exception=True)
             item_serializer.save(expense=expense)
         return expense
@@ -491,65 +559,101 @@ class ExpenseSerializer(serializers.ModelSerializer):
             item_id = item_data.get('id')
             if item_id:
                 try:
-                    expense_item = ExpenseItem.objects.get(id=item_id, expense=instance)
+                    expense_item = ExpenseItem.objects.get(id=item_id,
+                                                           expense=instance)
                     # Use ExpenseItemSerializer to handle assigned_fuel_ticket_filters
-                    item_serializer = ExpenseItemSerializer(expense_item, data=item_data, context=self.context, partial=True)
+                    item_serializer = ExpenseItemSerializer(
+                        expense_item,
+                        data=item_data,
+                        context=self.context,
+                        partial=True)
                     item_serializer.is_valid(raise_exception=True)
                     item_serializer.save()
                 except ExpenseItem.DoesNotExist:
                     pass
             else:
                 # Use ExpenseItemSerializer to handle assigned_fuel_ticket_filters
-                item_serializer = ExpenseItemSerializer(data=item_data, context=self.context)
+                item_serializer = ExpenseItemSerializer(data=item_data,
+                                                        context=self.context)
                 item_serializer.is_valid(raise_exception=True)
                 item_serializer.save(expense=instance)
 
         return instance
 
+
 class PurchasedItemStatSerializer(serializers.Serializer):
     item_name = serializers.CharField(read_only=True)
-    average_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    last_bought_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    total_item_bought = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    average_price = serializers.DecimalField(max_digits=10,
+                                             decimal_places=2,
+                                             read_only=True)
+    last_bought_price = serializers.DecimalField(max_digits=10,
+                                                 decimal_places=2,
+                                                 read_only=True)
+    total_item_bought = serializers.DecimalField(max_digits=10,
+                                                 decimal_places=2,
+                                                 read_only=True)
 
     class Meta:
         fields = '__all__'
+
 
 class InvoicedItemStatSerializer(serializers.Serializer):
     item_name = serializers.CharField(read_only=True)
-    average_price = serializers.DecimalField(max_digits=60, decimal_places=2, read_only=True)
-    last_sold_price = serializers.DecimalField(max_digits=60, decimal_places=2, read_only=True)
-    total_item_sold = serializers.IntegerField(read_only=True)
+    average_price = serializers.DecimalField(max_digits=60,
+                                             decimal_places=2,
+                                             read_only=True)
+    last_sold_price = serializers.DecimalField(max_digits=60,
+                                               decimal_places=2,
+                                               read_only=True)
+    total_item_sold = serializers.DecimalField(max_digits=60,
+                                               decimal_places=2,
+                                               read_only=True)
 
     class Meta:
         fields = '__all__'
+
 
 class ExpensedItemStatSerializer(serializers.Serializer):
     item_name = serializers.CharField(read_only=True)
-    average_price = serializers.DecimalField(max_digits=60, decimal_places=2, read_only=True)
-    last_expensed_price = serializers.DecimalField(max_digits=60, decimal_places=2, read_only=True)
-    total_item_expensed_quantity = serializers.DecimalField(max_digits=60, decimal_places=2, read_only=True) # quantity is DecimalField in model
+    average_price = serializers.DecimalField(max_digits=60,
+                                             decimal_places=2,
+                                             read_only=True)
+    last_expensed_price = serializers.DecimalField(max_digits=60,
+                                                   decimal_places=2,
+                                                   read_only=True)
+    total_item_expensed_quantity = serializers.DecimalField(
+        max_digits=60, decimal_places=2,
+        read_only=True)  # quantity is DecimalField in model
 
     class Meta:
         fields = '__all__'
+
 
 class ItemNameSerializer(serializers.Serializer):
     item_name = serializers.CharField(read_only=True)
 
     class Meta:
         fields = '__all__'
+
+
 class CashCounterSerializer(serializers.ModelSerializer):
     """
     Serializer for the CashCounter model.
     """
+
     class Meta:
         model = CashCounter
         fields = '__all__'
+
+
 class CashCounterLogSerializer(serializers.ModelSerializer):
     """
     Serializer for the CashCounterLog model.
     """
+
     class Meta:
         model = CashCounterLog
         fields = '__all__'
-        read_only_fields = ('pre_amount', 'final_amount', 'created_at', 'is_applied') # These fields are set by the model/signals
+        read_only_fields = ('pre_amount', 'final_amount', 'created_at',
+                            'is_applied'
+                            )  # These fields are set by the model/signals
