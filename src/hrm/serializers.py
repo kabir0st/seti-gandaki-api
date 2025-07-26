@@ -1,49 +1,46 @@
 from decimal import Decimal
-from django.core.validators import  MinValueValidator
+from django.core.validators import MinValueValidator
 from rest_framework import serializers
 from hrm.models.fuel import FuelTicket, PetrolStation
 from hrm.models.attendance import Attendance
-from statements.serializers import  StaffSerializer, VehicleSerializer
+from statements.serializers import StaffSerializer, VehicleSerializer
 from hrm.models.salary import SalaryDisbursement
 from system.serializers.users import MiniUserBaseSerializer
 from hrm.models.food_ticket import FoodTicket
 
 
 class PetrolStationSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = PetrolStation
-        fields = (
-            'id', 'name', 'station_code', 'location_details', 
-            'is_active', 'created_at', 'updated_at'
-        )
+        fields = ('id', 'name', 'station_code', 'location_details',
+                  'is_active', 'created_at', 'updated_at')
         read_only_fields = ('id', 'created_at', 'updated_at')
 
 
 class FuelTicketSerializer(serializers.ModelSerializer):
     dispatched_by = MiniUserBaseSerializer(read_only=True)
-    
+
     consumed_by_station = PetrolStationSerializer(read_only=True)
     consumed_by_station_id = serializers.PrimaryKeyRelatedField(
         queryset=PetrolStation.objects.filter(is_active=True),
         source='consumed_by_station',
         write_only=True,
         allow_null=True,
-        required=False
-    )
+        required=False)
     ticket_url = serializers.SerializerMethodField()
-    vehicle_details = VehicleSerializer(source = 'vehicle', read_only=True)
+    vehicle_details = VehicleSerializer(source='vehicle', read_only=True)
 
     class Meta:
         model = FuelTicket
         fields = "__all__"
 
-        read_only_fields = (
-            'id', 'ticket_id', 'is_consumed', 'consumed_at', 
-            'created_at', 'updated_at', 'ticket_url', 'is_paid'
-        )
+        read_only_fields = ('id', 'ticket_id', 'is_consumed', 'consumed_at',
+                            'created_at', 'updated_at', 'ticket_url',
+                            'is_paid')
 
     def get_ticket_url(self, obj):
-        return f"/verify-fuel-ticket/{obj.ticket_id}/" 
+        return f"/verify-fuel-ticket/{obj.ticket_id}/"
 
     def create(self, validated_data):
         validated_data['dispatched_by'] = self.context['request'].user
@@ -51,74 +48,76 @@ class FuelTicketSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         if instance.is_consumed and not self.context['request'].user.is_staff:
-             raise serializers.ValidationError("Consumed tickets cannot be modified by non-staff.")
+            raise serializers.ValidationError(
+                "Consumed tickets cannot be modified by non-staff.")
         return super().update(instance, validated_data)
 
 
 class FuelTicketConsumeSerializer(serializers.Serializer):
-    station_code = serializers.CharField(
-        required=True
-    )
+    station_code = serializers.CharField(required=True)
     bill_amount = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(Decimal('0.01'))],
-        required=True
-    )
+        required=True)
 
     def validate_station_code(self, value):
         try:
-            station = PetrolStation.objects.get(station_code=value, is_active=True)
-            self.context['station'] = station 
+            station = PetrolStation.objects.get(station_code=value,
+                                                is_active=True)
+            self.context['station'] = station
         except PetrolStation.DoesNotExist:
-            raise serializers.ValidationError("Invalid or inactive station code.")
+            raise serializers.ValidationError(
+                "Invalid or inactive station code.")
         return value
 
     def save(self, **kwargs):
-        ticket = self.context['ticket'] 
+        ticket = self.context['ticket']
         station = self.context['station']
         validated_data = self.validated_data
         if ticket.is_consumed:
-            raise serializers.ValidationError(f"Ticket already consumed at {ticket.consumed_by_station.name} on {ticket.consumed_at.strftime('%Y-%m-%d %H:%M')}.")
+            raise serializers.ValidationError(
+                f"Ticket already consumed at {ticket.consumed_by_station.name} on {ticket.consumed_at.strftime('%Y-%m-%d %H:%M')}."
+            )
         ticket.bill_amount = validated_data.get('bill_amount')
         ticket.mark_as_consumed(station=station)
         return ticket
 
+
 class FuelTicketPublicDetailSerializer(serializers.ModelSerializer):
     dispatched_by = MiniUserBaseSerializer(read_only=True)
-    fuel_type = serializers.CharField(source='get_fuel_type_display', read_only=True)
+    fuel_type = serializers.CharField(source='get_fuel_type_display',
+                                      read_only=True)
 
     class Meta:
         model = FuelTicket
-        fields = (
-            'ticket_id', 'fuel_type', 'quantity_liters', 
-            'vehicle_registration_number', 'driver_name',
-            'dispatched_by', 'created_at', 'is_consumed'
-        )
+        fields = ('ticket_id', 'fuel_type', 'quantity_liters',
+                  'vehicle_registration_number', 'driver_name',
+                  'dispatched_by', 'created_at', 'is_consumed')
         read_only_fields = fields
 
 
 class AttendanceSerializer(serializers.ModelSerializer):
     staff = StaffSerializer(read_only=True)
     staff_id = serializers.PrimaryKeyRelatedField(
-        queryset=StaffSerializer.Meta.model.objects.all(), # Use Staff model from StaffSerializer
+        queryset=StaffSerializer.Meta.model.objects.all(
+        ),  # Use Staff model from StaffSerializer
         source='staff',
-        write_only=True
-    )
-    attendance_type_display = serializers.CharField(source='get_attendance_type_display', read_only=True)
-    verification_method_display = serializers.CharField(source='get_verification_method_display', read_only=True)
+        write_only=True)
+    attendance_type_display = serializers.CharField(
+        source='get_attendance_type_display', read_only=True)
+    verification_method_display = serializers.CharField(
+        source='get_verification_method_display', read_only=True)
 
     class Meta:
         model = Attendance
-        fields = (
-            'id', 'staff', 'staff_id', 'date', 'time', 'attendance_type',
-            'attendance_type_display', 'verification_method', 'verification_method_display',
-            'remarks', 'created_at', 'updated_at'
-        )
-        read_only_fields = (
-            'id', 'created_at', 'updated_at', 'attendance_type_display',
-            'verification_method_display'
-        )
+        fields = ('id', 'staff', 'staff_id', 'date', 'time', 'attendance_type',
+                  'attendance_type_display', 'verification_method',
+                  'verification_method_display', 'remarks', 'created_at',
+                  'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at',
+                            'attendance_type_display',
+                            'verification_method_display')
 
 
 class ManualAttendanceSerializer(serializers.ModelSerializer):
@@ -127,61 +126,59 @@ class ManualAttendanceSerializer(serializers.ModelSerializer):
     staff_id = serializers.PrimaryKeyRelatedField(
         queryset=StaffSerializer.Meta.model.objects.all(),
         source='staff',
-        write_only=True
-    )
-    attendance_type_display = serializers.CharField(source='get_attendance_type_display', read_only=True)
+        write_only=True)
+    attendance_type_display = serializers.CharField(
+        source='get_attendance_type_display', read_only=True)
 
     class Meta:
         model = Attendance
-        fields = (
-            'id', 'staff', 'staff_id', 'date', 'time', 'attendance_type',
-            'attendance_type_display', 'verification_method', 'remarks',
-            'created_at', 'updated_at'
-        )
-        read_only_fields = ('id', 'created_at', 'updated_at', 'attendance_type_display')
+        fields = ('id', 'staff', 'staff_id', 'date', 'time', 'attendance_type',
+                  'attendance_type_display', 'verification_method', 'remarks',
+                  'created_at', 'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at',
+                            'attendance_type_display')
 
     def create(self, validated_data):
         # Ensure verification method is MANUAL for manual entries
         validated_data['verification_method'] = 'MANUAL'
         return super().create(validated_data)
+
+
 class SalaryDisbursementSerializer(serializers.ModelSerializer):
     staff = StaffSerializer(read_only=True)
     staff_id = serializers.PrimaryKeyRelatedField(
         queryset=StaffSerializer.Meta.model.objects.all(),
         source='staff',
-        write_only=True
-    )
+        write_only=True)
     created_by = MiniUserBaseSerializer(read_only=True)
 
     class Meta:
         model = SalaryDisbursement
-        fields = (
-            'id', 'staff', 'staff_id', 'from_date', 'to_date', 'amount',
-            'remarks', 'created_by', 'created_at', 'updated_at'
-        )
+        fields = ('id', 'staff', 'staff_id', 'from_date', 'to_date', 'amount',
+                  'remarks', 'created_by', 'created_at', 'updated_at')
         read_only_fields = ('id', 'created_at', 'updated_at', 'created_by')
 
     def create(self, validated_data):
         validated_data['created_by'] = self.context['request'].user
         return super().create(validated_data)
+
+
 class FoodTicketSerializer(serializers.ModelSerializer):
     staff = StaffSerializer(read_only=True)
     staff_id = serializers.PrimaryKeyRelatedField(
         queryset=StaffSerializer.Meta.model.objects.all(),
         source='staff',
         write_only=True,
-        help_text="ID of the staff member receiving the ticket."
-    )
+        help_text="ID of the staff member receiving the ticket.")
     issued_by = MiniUserBaseSerializer(read_only=True)
-    meal_type_display = serializers.CharField(source='get_meal_type_display', read_only=True)
+    meal_type_display = serializers.CharField(source='get_meal_type_display',
+                                              read_only=True)
 
     class Meta:
         model = FoodTicket
         fields = "__all__"
-        read_only_fields = (
-            'id', 'issued_by', 'ticket_number', 'issued_at', 
-            'created_at', 'updated_at', 'meal_type_display'
-        )
+        read_only_fields = ('id', 'issued_by', 'ticket_number', 'issued_at',
+                            'created_at', 'updated_at', 'meal_type_display')
 
     def create(self, validated_data):
         validated_data['issued_by'] = self.context['request'].user
@@ -192,18 +189,23 @@ class FoodTicketSerializer(serializers.ModelSerializer):
         # Potentially add logic here if certain fields cannot be updated after creation
         # or based on ticket status (e.g., if already used)
         if instance.is_used and not self.context['request'].user.is_staff:
-             raise serializers.ValidationError("Used tickets cannot be modified by non-staff users.")
+            raise serializers.ValidationError(
+                "Used tickets cannot be modified by non-staff users.")
         return super().update(instance, validated_data)
+
 
 class FoodTicketMarkAsUsedSerializer(serializers.Serializer):
     """
     Serializer for marking a food ticket as used.
     No input fields needed as the ticket ID comes from the URL.
     """
+
     def update(self, instance, validated_data):
         if instance.is_used:
-            raise serializers.ValidationError(f"Ticket {instance.ticket_number} was already used at {instance.used_at.strftime('%Y-%m-%d %H:%M')}.")
-        
+            raise serializers.ValidationError(
+                f"Ticket {instance.ticket_number} was already used at {instance.used_at.strftime('%Y-%m-%d %H:%M')}."
+            )
+
         from django.utils import timezone
         instance.is_used = True
         instance.used_at = timezone.now()
