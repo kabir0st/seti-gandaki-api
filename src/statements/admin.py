@@ -13,6 +13,7 @@ from .models.support import Staff
 from .models.cashcounter import CashCounter
 from .models.cashcounter_log import CashCounterLog
 
+
 @admin.register(Business)
 class BusinessAdmin(ModelAdmin):
     list_display = (
@@ -59,6 +60,11 @@ class InvoiceItemInline(TabularInline):
     autocomplete_fields = []
 
 
+@admin.register(InvoiceItem)
+class InvoiceItemAdmin(ModelAdmin):
+    model = InvoiceItem
+
+
 @admin.register(Invoice)
 class InvoiceAdmin(ModelAdmin):
     list_display = (
@@ -78,17 +84,19 @@ class InvoiceAdmin(ModelAdmin):
         'customer_pan',
     )
     list_filter = ('status', 'is_taxable', 'invoiced_on')
-    autocomplete_fields = ['customer', 'created_by', 'last_updated_by', 'cancelled_by']
+    autocomplete_fields = [
+        'customer', 'created_by', 'last_updated_by', 'cancelled_by'
+    ]
     inlines = [InvoiceItemInline]
     date_hierarchy = 'invoiced_on'
-    ordering = ('-invoiced_on',)
+    ordering = ('-invoiced_on', )
 
 
 @admin.register(ExpenseCategory)
 class ExpenseCategoryAdmin(ModelAdmin):
     list_display = ('name', 'description', 'created_at', 'updated_at')
-    search_fields = ('name',)
-    ordering = ('name',)
+    search_fields = ('name', )
+    ordering = ('name', )
 
 
 class ExpenseItemInline(TabularInline):
@@ -96,10 +104,11 @@ class ExpenseItemInline(TabularInline):
     extra = 1
     autocomplete_fields = ['attached_fuel_tickets']
 
+
 @admin.register(ExpenseItem)
 class ExpenseItemAdmin(ModelAdmin):
     model = ExpenseItem
-    autocomplete_fields = ['attached_fuel_tickets','expense']
+    autocomplete_fields = ['attached_fuel_tickets', 'expense']
 
 
 @admin.register(Expense)
@@ -117,10 +126,13 @@ class ExpenseAdmin(ModelAdmin):
     )
     list_filter = ('status', 'category', 'payment_date')
     search_fields = ('paid_to', 'bill_number', 'remarks')
-    autocomplete_fields = ['category', 'created_by', 'last_updated_by', 'cancelled_by']
+    autocomplete_fields = [
+        'category', 'created_by', 'last_updated_by', 'cancelled_by'
+    ]
     inlines = [ExpenseItemInline]
     date_hierarchy = 'payment_date'
-    ordering = ('-payment_date',)
+    ordering = ('-payment_date', )
+
 
 @admin.register(PurchaseItem)
 class PurchaseItemAdmin(ModelAdmin):
@@ -232,13 +244,14 @@ class StatementSettingsAdmin(ModelAdmin):
 
 @admin.register(Staff)
 class StaffAdmin(ModelAdmin):
-    list_display = ('name', 'phone_number', 'pan', 'enrollment_date', 'assigned_salary',
-                    'updated_at')
+    list_display = ('name', 'phone_number', 'pan', 'enrollment_date',
+                    'assigned_salary', 'updated_at')
     search_fields = ('name', 'phone_number', 'pan')
     list_filter = ('updated_at', )
     ordering = ('name', )
 
     # driver_display method removed as driver fields are no longer on TripLog
+
 
 @admin.register(Payment)
 class PaymentAdmin(ModelAdmin):
@@ -251,13 +264,14 @@ class PaymentAdmin(ModelAdmin):
         'related_account__name',
         'created_at',
     )
-    list_filter = ( 'is_refunded', 'created_at', 'invoice', 'purchase_bill', 'expense')
+    list_filter = ('is_refunded', 'created_at', 'invoice', 'purchase_bill',
+                   'expense')
     search_fields = (
         'id',
-        'created_by__username', # Assuming UserBase has a username field
+        'created_by__username',  # Assuming UserBase has a username field
         'invoice__invoice_number',
         'purchase_bill__purchase_bill_number',
-        'expense__bill_number', # Assuming Expense has a bill_number
+        'expense__bill_number',  # Assuming Expense has a bill_number
         'remarks',
     )
     autocomplete_fields = ['created_by', 'invoice', 'purchase_bill', 'expense']
@@ -275,19 +289,18 @@ class AccountAdmin(ModelAdmin):
     )
     search_fields = ('name', 'account_number', 'bank_name', 'branch_name')
     readonly_fields = ('created_at', 'updated_at')
-    ordering = ('name',)
+    ordering = ('name', )
 
 
 class CashCounterLogInline(TabularInline):
     model = CashCounterLog
     extra = 0
-    readonly_fields = ('created_at', 'pre_amount', 'final_amount', 'is_applied')
-    fields = (
-        'denomination_1000', 'denomination_500', 'denomination_100',
-        'denomination_50', 'denomination_20', 'denomination_10',
-        'denomination_5', 'denomination_2', 'denomination_1',
-        'remarks', 'pre_amount', 'final_amount', 'is_applied', 'created_at'
-    )
+    readonly_fields = ('created_at', 'pre_amount', 'final_amount',
+                       'is_applied')
+    fields = ('denomination_1000', 'denomination_500', 'denomination_100',
+              'denomination_50', 'denomination_20', 'denomination_10',
+              'denomination_5', 'denomination_2', 'denomination_1', 'remarks',
+              'pre_amount', 'final_amount', 'is_applied', 'created_at')
 
     def has_change_permission(self, request, obj=None):
         return False  # Logs should not be modified after creation
@@ -302,16 +315,17 @@ class CashCounterAdmin(ModelAdmin):
         'denomination_500',
         'denomination_100',
     )
-    search_fields = ('counter_name',)
-    ordering = ('counter_name',)
+    search_fields = ('counter_name', )
+    ordering = ('counter_name', )
     inlines = [CashCounterLogInline]
 
     fieldsets = (
         (None, {
-            'fields': ('counter_name',)
+            'fields': ('counter_name', )
         }),
         ('High Denominations', {
-            'fields': ('denomination_1000', 'denomination_500', 'denomination_100')
+            'fields':
+            ('denomination_1000', 'denomination_500', 'denomination_100')
         }),
         ('Medium Denominations', {
             'fields': ('denomination_50', 'denomination_20', 'denomination_10')
@@ -323,6 +337,7 @@ class CashCounterAdmin(ModelAdmin):
 
     def get_total_amount(self, obj):
         return f"Rs. {obj.total_amount():,.2f}"
+
     get_total_amount.short_description = 'Total Amount'
 
 
@@ -338,17 +353,19 @@ class CashCounterLogAdmin(ModelAdmin):
     )
     list_filter = ('is_applied', 'created_at', 'cash_counter')
     search_fields = ('cash_counter__counter_name', 'remarks')
-    readonly_fields = ('created_at', 'pre_amount', 'final_amount', 'is_applied')
+    readonly_fields = ('created_at', 'pre_amount', 'final_amount',
+                       'is_applied')
     autocomplete_fields = ['cash_counter']
     date_hierarchy = 'created_at'
-    ordering = ('-created_at',)
+    ordering = ('-created_at', )
 
     fieldsets = (
         (None, {
             'fields': ('cash_counter', 'remarks')
         }),
         ('High Denominations Changes', {
-            'fields': ('denomination_1000', 'denomination_500', 'denomination_100')
+            'fields':
+            ('denomination_1000', 'denomination_500', 'denomination_100')
         }),
         ('Medium Denominations Changes', {
             'fields': ('denomination_50', 'denomination_20', 'denomination_10')
@@ -358,17 +375,18 @@ class CashCounterLogAdmin(ModelAdmin):
         }),
         ('Summary', {
             'fields': ('pre_amount', 'final_amount', 'is_applied'),
-            'classes': ('collapse',)
+            'classes': ('collapse', )
         }),
         ('Timestamps', {
-            'fields': ('created_at',),
-            'classes': ('collapse',)
+            'fields': ('created_at', ),
+            'classes': ('collapse', )
         }),
     )
 
     def get_total_change(self, obj):
         change = obj.calculate_total_change()
         return f"Rs. {change:+,.2f}"
+
     get_total_change.short_description = 'Total Change'
 
     def has_change_permission(self, request, obj=None):

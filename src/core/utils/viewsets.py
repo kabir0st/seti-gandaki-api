@@ -113,9 +113,11 @@ class DefaultViewSet(ModelViewSet):
 
         # Check if this is a view with custom logic (no direct model queryset)
         # or if the view has a custom export_data method
+        print('called ? ')
         if hasattr(self, 'export_data') and callable(
                 getattr(self, 'export_data')):
             # Use custom export_data method from the view
+            print(' ok ok ')
             try:
                 data = self.export_data(request, *args, **kwargs)
                 view_name = self.__class__.__name__.replace('ViewSet',
