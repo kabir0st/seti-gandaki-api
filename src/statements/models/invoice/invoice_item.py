@@ -42,7 +42,7 @@ class InvoiceItem(DefaultModel):
                                       max_digits=60,
                                       decimal_places=2)
 
-    is_marked_as_complete = models.BooleanField(default=False)
+    is_marked_as_complete = models.BooleanField(null=True, blank=True)
     ALLOW_UPDATE = [
         'is_marked_as_complete',
     ]

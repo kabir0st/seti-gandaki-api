@@ -1,8 +1,8 @@
 from django.contrib import admin
 from .models.fuel import PetrolStation, FuelTicket
-from .models.attendance import Attendance  # Import Attendance model
-from .models.salary import SalaryDisbursement  # Import SalaryDisbursement model
-from .models.food_ticket import FoodTicket  # Import FoodTicket model
+from .models.attendance import Attendance
+from .models.salary import SalaryDisbursement
+from .models.food_ticket import FoodTicket
 from unfold.admin import ModelAdmin
 
 
